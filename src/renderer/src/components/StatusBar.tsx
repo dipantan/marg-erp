@@ -1,0 +1,80 @@
+import React, { useState, useEffect } from 'react'
+import type { AppInfo, DatabaseStats } from '@shared/types'
+
+interface StatusBarProps {
+  appInfo?: AppInfo | null
+  dbStats?: DatabaseStats | null
+}
+
+export const StatusBar: React.FC<StatusBarProps> = ({ appInfo, dbStats }) => {
+  const [timeStr, setTimeStr] = useState<string>('')
+
+  useEffect(() => {
+    const updateTime = (): void => {
+      const now = new Date()
+      setTimeStr(
+        now.toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        })
+      )
+    }
+    updateTime()
+    const timer = setInterval(updateTime, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <footer className="windows-statusbar">
+      {/* Pane 1: System Readiness */}
+      <div className="statusbar-pane statusbar-pane-status">
+        <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block shrink-0" />
+        <span className="font-semibold text-slate-200">READY</span>
+      </div>
+
+      {/* Pane 2: Store / Licenced Entity */}
+      <div className="statusbar-pane flex-1 min-w-0">
+        <span className="text-slate-400">Store:</span>
+        <span className="font-semibold text-slate-200 truncate">
+          M/S JANATA MEDICAL STORES • BUNIADPUR
+        </span>
+      </div>
+
+      {/* Pane 3: SQLite WAL Engine */}
+      <div className="statusbar-pane">
+        <span className="text-slate-400">Database:</span>
+        <span className="font-mono text-emerald-400">SQLite 3 (WAL)</span>
+        {dbStats && (
+          <span className="text-slate-400 font-mono">
+            ({dbStats.fileSizeKb} KB / WAL {dbStats.walSizeKb} KB)
+          </span>
+        )}
+      </div>
+
+      {/* Pane 4: Inventory Records */}
+      {dbStats && (
+        <div className="statusbar-pane">
+          <span className="text-slate-400">Products:</span>
+          <span className="font-mono text-indigo-400 font-semibold">{dbStats.totalProducts}</span>
+          <span className="text-slate-500">•</span>
+          <span className="text-slate-400">Memos:</span>
+          <span className="font-mono text-slate-200 font-semibold">{dbStats.totalInvoices}</span>
+        </div>
+      )}
+
+      {/* Pane 5: App Version & Accelerator Hint */}
+      <div className="statusbar-pane">
+        <span className="text-slate-400">v{appInfo?.version || '0.1.0'}</span>
+        <span className="text-slate-500">•</span>
+        <span className="text-amber-400 font-mono text-[10px]">[F1: Help]</span>
+      </div>
+
+      {/* Pane 6: System Digital Clock */}
+      <div className="statusbar-pane statusbar-pane-clock">
+        <span className="font-mono font-semibold text-slate-200">{timeStr}</span>
+      </div>
+    </footer>
+  )
+}

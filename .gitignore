@@ -1,0 +1,29 @@
+node_modules
+dist
+out
+build-output
+
+# SQLite & local databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Logs & caches
+*.log*
+.eslintcache
+.vite
+.cache
+coverage
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

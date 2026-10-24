@@ -1,0 +1,64 @@
+appId: com.marg.erp
+productName: Marg ERP
+compression: maximum
+electronLanguages:
+  - 'en-US'
+  - 'en'
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!tests/**'
+  - '!vitest.config.ts'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!**/node_modules/better-sqlite3/deps/**'
+  - '!**/node_modules/better-sqlite3/src/**'
+  - '!**/node_modules/better-sqlite3/prebuilds/darwin*/**'
+  - '!**/node_modules/better-sqlite3/prebuilds/linux*/**'
+  - '!**/node_modules/lucide-react/**'
+  - '!**/node_modules/qrcode/**'
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+  - 'resources/**'
+win:
+  executableName: marg-erp
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: Marg ERP
+  category: Office
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: generic
+  url: https://example.com/auto-updates
+
