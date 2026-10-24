@@ -299,6 +299,21 @@ export const App: React.FC = () => {
             'Marg ERP Desktop v0.1.0\n100% Offline SQLite 3 WAL Engine\nBuilt for Indian Retail Pharmacy'
           )
           break
+        case 'action:check-updates':
+          if (window.api?.updater) {
+            window.api.updater.checkForUpdates().then((res) => {
+              if (res.data?.status === 'not-available') {
+                alert(`Marg ERP is up to date!\nCurrent version: v${res.data.version || '0.1.0'}`)
+              } else if (res.data?.status === 'available') {
+                alert(
+                  `Update Available!\nMarg ERP v${res.data.version} is available and downloading in background.`
+                )
+              } else if (res.error) {
+                alert(`Update check notice:\n${res.error}`)
+              }
+            })
+          }
+          break
       }
     })
     return cleanup

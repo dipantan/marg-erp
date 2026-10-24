@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '@shared/ipc-channels'
 import type { IpcApi } from '@shared/ipc-channels'
+import type { UpdateStatus } from '@shared/types'
 
 const apiBridge: IpcApi = {
   app: {
@@ -59,6 +60,20 @@ const apiBridge: IpcApi = {
       ipcRenderer.on(IPC_CHANNELS.MENU.ACTION, listener)
       return () => {
         ipcRenderer.removeListener(IPC_CHANNELS.MENU.ACTION, listener)
+      }
+    }
+  },
+  updater: {
+    checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.CHECK),
+    downloadUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.DOWNLOAD),
+    quitAndInstall: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.INSTALL),
+    onStatusChange: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, status: unknown): void => {
+        callback(status as UpdateStatus)
+      }
+      ipcRenderer.on(IPC_CHANNELS.UPDATER.STATUS, listener)
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.UPDATER.STATUS, listener)
       }
     }
   }

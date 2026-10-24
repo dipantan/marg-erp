@@ -13,7 +13,8 @@ import type {
   Invoice,
   CreateInvoiceInput,
   HeldBill,
-  PurchaseImportItem
+  PurchaseImportItem,
+  UpdateStatus
 } from './types'
 
 export const IPC_CHANNELS = {
@@ -65,6 +66,12 @@ export const IPC_CHANNELS = {
     HOLD_BILL: 'invoices:hold-bill',
     GET_HELD_BILLS: 'invoices:get-held-bills',
     REMOVE_HELD_BILL: 'invoices:remove-held-bill'
+  },
+  UPDATER: {
+    CHECK: 'updater:check',
+    DOWNLOAD: 'updater:download',
+    INSTALL: 'updater:install',
+    STATUS: 'updater:status'
   }
 } as const
 
@@ -118,4 +125,11 @@ export interface IpcApi {
   menu: {
     onAction: (callback: (action: string) => void) => () => void
   }
+  updater: {
+    checkForUpdates: () => Promise<ApiResponse<UpdateStatus>>
+    downloadUpdate: () => Promise<ApiResponse<boolean>>
+    quitAndInstall: () => Promise<void>
+    onStatusChange: (callback: (status: UpdateStatus) => void) => () => void
+  }
 }
+

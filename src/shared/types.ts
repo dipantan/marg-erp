@@ -230,3 +230,14 @@ export interface DatabaseStats {
   lowStockCount: number
   lastUpdated: string
 }
+
+export interface UpdateStatus {
+  status: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'
+  version?: string
+  percent?: number
+  transferred?: number
+  total?: number
+  bytesPerSecond?: number
+  error?: string
+}
+

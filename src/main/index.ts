@@ -4,6 +4,7 @@ import { createMainWindow } from './window'
 import { setupApplicationMenu } from './menu'
 import { initDatabase } from './db/database'
 import { registerIpcHandlers } from './ipc/registerHandlers'
+import { initAutoUpdater } from './updater'
 
 // Enforce single instance lock
 const gotTheLock = app.requestSingleInstanceLock()
@@ -44,10 +45,14 @@ if (!gotTheLock) {
     mainWindow = createMainWindow()
     setupApplicationMenu(mainWindow)
 
+    // 4. Initialize Auto Updater with GitHub Releases
+    initAutoUpdater(mainWindow)
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         mainWindow = createMainWindow()
         setupApplicationMenu(mainWindow)
+        initAutoUpdater(mainWindow)
       }
     })
   })

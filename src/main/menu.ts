@@ -218,6 +218,10 @@ export function setupApplicationMenu(mainWindow: BrowserWindow): void {
           accelerator: 'F1',
           click: (): void => sendAction('action:help')
         },
+        {
+          label: 'Check for Updates...',
+          click: (): void => sendAction('action:check-updates')
+        },
         { type: 'separator' as const },
         {
           label: 'About Marg ERP Enterprise',
