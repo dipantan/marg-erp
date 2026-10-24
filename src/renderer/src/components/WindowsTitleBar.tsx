@@ -41,7 +41,7 @@ export const WindowsTitleBar: React.FC<WindowsTitleBarProps> = ({ storeName }) =
           {storeName || 'M/S JANATA MEDICAL STORES'}
         </span>
         <span className="text-slate-500">•</span>
-        <span className="text-slate-400 text-xs">Offline SQLite 3 (WAL Engine)</span>
+        <span className="text-slate-400 text-xs">100% Offline Mode</span>
       </div>
 
       {/* Non-Mac Window Controls */}

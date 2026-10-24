@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react'
+import { Save } from 'lucide-react'
 import type { AppInfo, DatabaseStats } from '@shared/types'
 
 interface StatusBarProps {
   appInfo?: AppInfo | null
   dbStats?: DatabaseStats | null
+  storeName?: string
+  storeCity?: string
+  onBackup?: () => void
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({ appInfo, dbStats }) => {
+export const StatusBar: React.FC<StatusBarProps> = ({
+  appInfo,
+  dbStats,
+  storeName,
+  storeCity,
+  onBackup
+}) => {
   const [timeStr, setTimeStr] = useState<string>('')
 
   useEffect(() => {
@@ -38,33 +48,37 @@ export const StatusBar: React.FC<StatusBarProps> = ({ appInfo, dbStats }) => {
       <div className="statusbar-pane flex-1 min-w-0">
         <span className="text-slate-400">Store:</span>
         <span className="font-semibold text-slate-200 truncate">
-          M/S JANATA MEDICAL STORES • BUNIADPUR
+          {storeName || 'M/S JANATA MEDICAL STORES'}
+          {storeCity ? ` • ${storeCity}` : ''}
         </span>
       </div>
 
-      {/* Pane 3: SQLite WAL Engine */}
+      {/* Pane 3: 1-Click Backup Data Action (Client Friendly) */}
       <div className="statusbar-pane">
-        <span className="text-slate-400">Database:</span>
-        <span className="font-mono text-emerald-400">SQLite 3 (WAL)</span>
-        {dbStats && (
-          <span className="text-slate-400 font-mono">
-            ({dbStats.fileSizeKb} KB / WAL {dbStats.walSizeKb} KB)
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={onBackup}
+          className="flex items-center gap-1.5 text-slate-300 hover:text-emerald-400 cursor-pointer bg-transparent border-0 p-0"
+          title="F10: Click to create an instant offline data backup"
+        >
+          <Save size={12} className="text-emerald-400" />
+          <span className="font-medium">Backup Data</span>
+          <span className="text-amber-400 font-mono text-[10px]">[F10]</span>
+        </button>
       </div>
 
-      {/* Pane 4: Inventory Records */}
+      {/* Pane 4: Inventory & Billing Record Summary */}
       {dbStats && (
         <div className="statusbar-pane">
-          <span className="text-slate-400">Products:</span>
+          <span className="text-slate-400">Stock Items:</span>
           <span className="font-mono text-indigo-400 font-semibold">{dbStats.totalProducts}</span>
           <span className="text-slate-500">•</span>
-          <span className="text-slate-400">Memos:</span>
+          <span className="text-slate-400">Bills:</span>
           <span className="font-mono text-slate-200 font-semibold">{dbStats.totalInvoices}</span>
         </div>
       )}
 
-      {/* Pane 5: App Version & Accelerator Hint */}
+      {/* Pane 5: App Version & Help Shortcut */}
       <div className="statusbar-pane">
         <span className="text-slate-400">v{appInfo?.version || '0.1.0'}</span>
         <span className="text-slate-500">•</span>

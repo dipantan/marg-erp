@@ -161,11 +161,11 @@ export const FunctionKeyToolbar: React.FC<FunctionKeyToolbarProps> = ({
         <button
           className={`toolbar-btn ${currentTab === 'database' ? 'active' : ''}`}
           onClick={() => onNavigate('database')}
-          title="F9: SQLite Database Statistics"
+          title="F9: Local Data Health & Statistics"
         >
           <span className="fkey-badge">F9</span>
           <Database size={14} />
-          <span>SQLite DB</span>
+          <span>Data Stats</span>
         </button>
 
         <button

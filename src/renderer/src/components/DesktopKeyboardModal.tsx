@@ -17,8 +17,8 @@ const shortcuts = [
   { key: 'F6', label: 'Bills Register', desc: 'Prescription & GST cash memo registry' },
   { key: 'F7', label: 'Patients', desc: 'Customer accounts ledger and due balances' },
   { key: 'F8', label: 'Store Compliance', desc: 'Drug licenses Form 20/21, GSTIN, FSSAI' },
-  { key: 'F9', label: 'SQLite DB', desc: 'Database file statistics, WAL journal inspection' },
-  { key: 'F10', label: 'Backup DB', desc: '1-click instant backup export to Desktop' },
+  { key: 'F9', label: 'Data Health', desc: 'Local storage statistics and data health verification' },
+  { key: 'F10', label: 'Backup Data', desc: '1-click instant data backup export to Desktop' },
   { key: 'Esc', label: 'Close / Cancel', desc: 'Close any active dialog or modal window' }
 ]
 

@@ -455,7 +455,13 @@ export const App: React.FC = () => {
       </div>
 
       {/* 5. Full-width Windows Multi-pane Status Bar */}
-      <StatusBar appInfo={appInfo} dbStats={dbStats} />
+      <StatusBar
+        appInfo={appInfo}
+        dbStats={dbStats}
+        storeName={storeSettings?.storeName}
+        storeCity={storeSettings?.city}
+        onBackup={handleBackup}
+      />
 
       {/* Global Modals */}
       <DesktopKeyboardModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />

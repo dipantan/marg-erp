@@ -1,4 +1,4 @@
-import { app, Menu, MenuItemConstructorOptions, BrowserWindow, shell } from 'electron'
+import { Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 
 export function setupApplicationMenu(mainWindow: BrowserWindow): void {
@@ -140,91 +140,46 @@ export function setupApplicationMenu(mainWindow: BrowserWindow): void {
       ]
     },
 
-    // 6. Tools Menu (T&ools -> Alt+O on Windows)
-    {
-      label: 'T&ools',
-      submenu: [
-        {
-          label: '1-Click Offline SQLite DB Backup',
-          accelerator: 'F10',
-          click: (): void => sendAction('action:backup')
-        },
-        {
-          label: 'SQLite 3 (WAL Engine) Diagnostics',
-          accelerator: 'F9',
-          click: (): void => sendAction('nav:database')
-        },
-        { type: 'separator' as const },
-        {
-          label: 'Open Application Data Folder',
-          click: (): void => {
-            shell.openPath(app.getPath('userData'))
+    // 6. macOS Edit Menu (Required on macOS for native Cmd+C/Cmd+V/Cmd+Z text field shortcuts)
+    ...(isMac
+      ? [
+          {
+            label: 'Edit',
+            submenu: [
+              { role: 'undo' as const },
+              { role: 'redo' as const },
+              { type: 'separator' as const },
+              { role: 'cut' as const },
+              { role: 'copy' as const },
+              { role: 'paste' as const },
+              { role: 'selectAll' as const }
+            ]
           }
-        }
-      ]
-    },
+        ]
+      : []),
 
-    // 7. Edit Menu (Native OS copy/paste/undo)
-    {
-      label: '&Edit',
-      submenu: [
-        { role: 'undo' as const },
-        { role: 'redo' as const },
-        { type: 'separator' as const },
-        { role: 'cut' as const },
-        { role: 'copy' as const },
-        { role: 'paste' as const },
-        { role: 'selectAll' as const }
-      ]
-    },
-
-    // 8. View Menu
-    {
-      label: '&View',
-      submenu: [
-        { role: 'reload' as const },
-        { role: 'forceReload' as const },
-        { role: 'toggleDevTools' as const },
-        { type: 'separator' as const },
-        { role: 'resetZoom' as const },
-        { role: 'zoomIn' as const },
-        { role: 'zoomOut' as const },
-        { type: 'separator' as const },
-        { role: 'togglefullscreen' as const }
-      ]
-    },
-
-    // 9. Window Menu
-    {
-      label: '&Window',
-      submenu: isMac
-        ? [
-            { role: 'minimize' as const },
-            { role: 'zoom' as const },
-            { type: 'separator' as const },
-            { role: 'front' as const },
-            { type: 'separator' as const },
-            { role: 'window' as const }
-          ]
-        : [{ role: 'minimize' as const }, { role: 'zoom' as const }, { role: 'close' as const }]
-    },
-
-    // 10. Help Menu (&Help -> Alt+H on Windows)
+    // 7. Client-Facing Help & Support Menu (No technical developer clutter)
     {
       label: '&Help',
       submenu: [
         {
-          label: 'Keyboard Accelerators Cheatsheet',
+          label: 'Keyboard Shortcuts Cheatsheet',
           accelerator: 'F1',
           click: (): void => sendAction('action:help')
         },
+        { type: 'separator' as const },
+        {
+          label: '1-Click Offline Data Backup',
+          accelerator: 'F10',
+          click: (): void => sendAction('action:backup')
+        },
+        { type: 'separator' as const },
         {
           label: 'Check for Updates...',
           click: (): void => sendAction('action:check-updates')
         },
-        { type: 'separator' as const },
         {
-          label: 'About Marg ERP Enterprise',
+          label: 'About Marg ERP',
           click: (): void => sendAction('action:about')
         }
       ]

@@ -73,10 +73,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, dbCon
         <button
           className={`desktop-nav-item ${currentTab === 'database' ? 'active' : ''}`}
           onClick={() => onSelectTab('database')}
-          title="Alt+6 / F9: SQLite Offline Engine"
+          title="Alt+6 / F9: Data Storage & Statistics"
         >
           <Database size={14} />
-          <span className="nav-item-title">SQLite Engine</span>
+          <span className="nav-item-title">Data Storage</span>
           <span className="nav-shortcut-tag">Alt+6</span>
         </button>
       </div>
@@ -87,9 +87,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, dbCon
             <span
               className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-emerald-500' : 'bg-red-500'}`}
             />
-            <span className="font-semibold text-[11px] text-slate-200">100% Offline DB</span>
+            <span className="font-semibold text-[11px] text-slate-200">100% Offline</span>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">SQLite 3 (WAL Engine)</span>
+          <span className="text-[10px] text-slate-400">Local Secured Storage</span>
         </div>
       </div>
     </aside>
