@@ -21,6 +21,10 @@ function run(cmd, desc) {
 }
 
 function bumpVersion(currentVersion, bumpType = 'patch') {
+  if (bumpType === 'current') {
+    return currentVersion
+  }
+
   if (['patch', 'minor', 'major'].includes(bumpType)) {
     const parts = currentVersion.split('.').map(Number)
     if (parts.length !== 3 || parts.some(isNaN)) {

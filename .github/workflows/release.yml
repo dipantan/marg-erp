@@ -35,6 +35,9 @@ jobs:
           pnpm run typecheck
           pnpm test
 
+      - name: Build Application
+        run: pnpm run build
+
       - name: Build and Publish to GitHub Releases
         run: pnpm exec electron-builder --win --publish always
         env:
