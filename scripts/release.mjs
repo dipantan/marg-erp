@@ -45,7 +45,9 @@ function bumpVersion(currentVersion, bumpType = 'patch') {
     return bumpType
   }
 
-  throw new Error(`Invalid bump type or version "${bumpType}". Use "patch", "minor", "major", or a semver like "0.2.0".`)
+  throw new Error(
+    `Invalid bump type or version "${bumpType}". Use "patch", "minor", "major", or a semver like "0.2.0".`
+  )
 }
 
 console.log('\x1b[35m========================================\x1b[0m')
