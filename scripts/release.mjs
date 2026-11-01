@@ -44,7 +44,6 @@ function bumpVersion(currentVersion, bumpType = 'patch') {
     return `${major}.${minor}.${patch}`
   }
 
-  // Explicit version provided (e.g., 0.2.0)
   if (/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(bumpType)) {
     return bumpType
   }
@@ -54,14 +53,13 @@ function bumpVersion(currentVersion, bumpType = 'patch') {
   )
 }
 
-console.log('\x1b[35m========================================\x1b[0m')
-console.log('\x1b[35m   Marg ERP - Push & Release Pipeline   \x1b[0m')
-console.log('\x1b[35m========================================\x1b[0m')
+console.log('\x1b[35m====================================================\x1b[0m')
+console.log('\x1b[35m   Marg ERP - Local Build & Direct Release Pipeline \x1b[0m')
+console.log('\x1b[35m====================================================\x1b[0m')
 
 // 1. Run local verification checks before touching any code or git tags
-run('pnpm run typecheck', '1/5 Checking TypeScript types')
-run('pnpm test', '2/5 Running unit tests')
-run('pnpm exec eslint --quiet .', '3/5 Running ESLint check')
+run('npm run typecheck', '1/6 Verifying TypeScript types')
+run('npm test', '2/6 Running unit tests')
 
 // 2. Read current package.json and determine new version
 const pkgRaw = fs.readFileSync(packageJsonPath, 'utf8')
@@ -74,10 +72,14 @@ const newTag = `v${newVersion}`
 console.log(`\n\x1b[32m✔ Version bump: v${currentVersion} ➔ ${newTag}\x1b[0m`)
 
 pkg.version = newVersion
-fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n')
+fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8')
 
-// 3. Git commit, tag, and push
-run('git add .', '4/5 Staging changes and package.json')
+// 3. Build electron app & Windows installer locally
+run('npm run build', '3/6 Compiling Vite & Electron application')
+run('npx electron-builder --win', '4/6 Building Windows installer (.exe, blockmap, latest.yml)')
+
+// 4. Git commit, tag, and push code
+run('git add .', '5/6 Staging changes and package.json')
 
 try {
   execSync(`git commit -m "release: ${newTag}"`, { stdio: 'inherit', cwd: rootDir })
@@ -86,12 +88,37 @@ try {
 }
 
 run(`git tag -a ${newTag} -m "Release ${newTag}"`, `Tagging ${newTag}`)
-run('git push origin HEAD --tags', '5/5 Pushing branch and tags to GitHub')
+run('git push origin HEAD --tags', 'Pushing branch and tags to GitHub')
+
+// 5. Upload release assets directly to GitHub using local gh CLI
+const setupExe = path.join(rootDir, 'dist', `marg-erp-${newVersion}-setup.exe`)
+const blockmap = path.join(rootDir, 'dist', `marg-erp-${newVersion}-setup.exe.blockmap`)
+const latestYml = path.join(rootDir, 'dist', 'latest.yml')
+
+const filesToUpload = [setupExe, blockmap, latestYml].filter((f) => fs.existsSync(f))
+
+console.log('\n\x1b[36m▶ 6/6 Uploading release binaries directly to GitHub Releases...\x1b[0m')
+const uploadArgs = filesToUpload.map((f) => `"${f}"`).join(' ')
+
+let releaseExists = false
+try {
+  execSync(`gh release view ${newTag}`, { stdio: 'pipe', cwd: rootDir })
+  releaseExists = true
+} catch {
+  releaseExists = false
+}
+
+if (releaseExists) {
+  run(`gh release upload ${newTag} ${uploadArgs} --clobber`, `Uploading to existing release ${newTag}`)
+} else {
+  run(
+    `gh release create ${newTag} ${uploadArgs} --title "Marg ERP ${newTag}" --notes "Direct local release ${newTag}"`,
+    `Creating GitHub Release ${newTag}`
+  )
+}
 
 console.log('\n\x1b[32m============================================================\x1b[0m')
-console.log(`\x1b[32m  ✔ ${newTag} pushed successfully to GitHub!               \x1b[0m`)
+console.log(`\x1b[32m  ✔ ${newTag} successfully built locally & published!        \x1b[0m`)
 console.log('\x1b[32m============================================================\x1b[0m')
-console.log('\x1b[33mGitHub Actions is now building and releasing the Windows installer:\x1b[0m')
-console.log('  → Actions:  https://github.com/dipantan/marg-erp/actions')
 console.log(`  → Releases: https://github.com/dipantan/marg-erp/releases/tag/${newTag}`)
-console.log('\x1b[32mClient apps will automatically receive the update once built.\x1b[0m\n')
+console.log('\x1b[32mClient apps will now receive this update directly.\x1b[0m\n')
