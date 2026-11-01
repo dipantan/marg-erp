@@ -1,6 +1,6 @@
 {
   "name": "marg-erp",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Marg ERP - Modern Enterprise Desktop Solution",
   "main": "./out/main/index.js",
   "author": "Marg ERP Team",
