@@ -219,7 +219,8 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                   <th>HSN Code</th>
                   <th>Medicine Name</th>
                   <th>Pack (Units)</th>
-                  <th>Active Batches (FEFO)</th>
+                  <th>Batch No</th>
+                  <th>Expiry</th>
                   <th>GST %</th>
                   <th>Stock (P:L)</th>
                   <th>Actions</th>
@@ -262,26 +263,61 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                           {item.packLabel} ({item.unitsPerPack} units)
                         </td>
                         <td>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             {item.batches && item.batches.length > 0 ? (
                               item.batches.map((b) => (
-                                <span
+                                <div
                                   key={b.id}
-                                  className={`badge ${
-                                    b.expDate.includes('26') || b.expDate.includes('27')
-                                      ? 'badge-danger'
-                                      : 'badge-info'
-                                  }`}
-                                  style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}
-                                  title={`Exp: ${b.expDate} | Stock: ${b.stockStrips}p:${b.stockLoose}l`}
+                                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                                 >
-                                  {b.batchNo} (₹{b.mrp.toFixed(2)}) Exp:{b.expDate}
-                                </span>
+                                  <span
+                                    className="badge"
+                                    style={{
+                                      fontSize: '0.72rem',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontWeight: 600,
+                                      background: '#1e293b',
+                                      color: '#38bdf8',
+                                      border: '1px solid #334155',
+                                      padding: '2px 6px'
+                                    }}
+                                    title={`Stock: ${b.stockStrips}p:${b.stockLoose}l`}
+                                  >
+                                    {b.batchNo}
+                                  </span>
+                                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                                    ₹{b.mrp.toFixed(2)}
+                                  </span>
+                                </div>
                               ))
                             ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                                No batch
-                              </span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {item.batches && item.batches.length > 0 ? (
+                              item.batches.map((b) => {
+                                const isNear =
+                                  b.expDate.includes('26') || b.expDate.includes('27')
+                                return (
+                                  <span
+                                    key={b.id}
+                                    className={`badge ${isNear ? 'badge-danger' : 'badge-info'}`}
+                                    style={{
+                                      fontSize: '0.72rem',
+                                      fontFamily: 'var(--font-mono)',
+                                      width: 'fit-content',
+                                      padding: '2px 6px'
+                                    }}
+                                  >
+                                    {b.expDate}
+                                  </span>
+                                )
+                              })
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>-</span>
                             )}
                           </div>
                         </td>
@@ -342,7 +378,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                       {isExpanded && item.batches && item.batches.length > 0 && (
                         <tr>
                           <td
-                            colSpan={7}
+                            colSpan={8}
                             style={{
                               background: 'var(--bg-subtle, rgba(255,255,255,0.02))',
                               padding: '12px 24px'

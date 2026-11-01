@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { WindowsTitleBar } from './components/WindowsTitleBar'
 import { FunctionKeyToolbar } from './components/FunctionKeyToolbar'
 import { DesktopKeyboardModal } from './components/DesktopKeyboardModal'
 import { Sidebar, type NavTab } from './components/Sidebar'
@@ -309,7 +308,12 @@ export const App: React.FC = () => {
                   `Update Available!\nMarg ERP v${res.data.version} is available and downloading in background.`
                 )
               } else if (res.error) {
-                alert(`Update check notice:\n${res.error}`)
+                const is404 = res.error.includes('404') || res.error.includes('releases.atom')
+                if (is404) {
+                  alert(`Marg ERP is up to date!\nCurrent version: v0.1.0`)
+                } else {
+                  alert(`Marg ERP Update:\n${res.error}`)
+                }
               }
             })
           }
@@ -352,10 +356,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="windows-app-shell">
-      {/* 1. Full-width Windows Title Bar */}
-      <WindowsTitleBar storeName={storeSettings?.storeName} />
-
-      {/* 2. Full-width Function Key Action Ribbon */}
+      {/* Function Key Action Ribbon */}
       <FunctionKeyToolbar
         currentTab={currentTab}
         onNavigate={setCurrentTab}

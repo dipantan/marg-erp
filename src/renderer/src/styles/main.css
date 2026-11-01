@@ -201,7 +201,8 @@ body,
   border-right: 1px solid #1e293b;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 6px;
   user-select: none;
   overflow-y: auto;
 }

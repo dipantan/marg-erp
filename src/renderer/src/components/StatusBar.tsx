@@ -38,13 +38,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   return (
     <footer className="windows-statusbar">
-      {/* Pane 1: System Readiness */}
-      <div className="statusbar-pane statusbar-pane-status">
-        <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block shrink-0" />
-        <span className="font-semibold text-slate-200">READY</span>
-      </div>
-
-      {/* Pane 2: Store / Licenced Entity */}
+      {/* Pane 1: Store / Licenced Entity */}
       <div className="statusbar-pane flex-1 min-w-0">
         <span className="text-slate-400">Store:</span>
         <span className="font-semibold text-slate-200 truncate">

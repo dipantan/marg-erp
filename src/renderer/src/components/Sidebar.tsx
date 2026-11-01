@@ -6,11 +6,11 @@ export type NavTab = 'dashboard' | 'items' | 'invoices' | 'customers' | 'databas
 interface SidebarProps {
   currentTab: NavTab
   onSelectTab: (tab: NavTab) => void
-  dbConnected: boolean
+  dbConnected?: boolean
   storeName?: string
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, dbConnected }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
   return (
     <aside className="desktop-nav-sidebar">
       <div className="nav-tree-section">
@@ -79,18 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, dbCon
           <span className="nav-item-title">Data Storage</span>
           <span className="nav-shortcut-tag">Alt+6</span>
         </button>
-      </div>
-
-      <div className="desktop-nav-footer">
-        <div className="desktop-engine-status">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-emerald-500' : 'bg-red-500'}`}
-            />
-            <span className="font-semibold text-[11px] text-slate-200">100% Offline</span>
-          </div>
-          <span className="text-[10px] text-slate-400">Local Secured Storage</span>
-        </div>
       </div>
     </aside>
   )

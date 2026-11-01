@@ -83,10 +83,16 @@ export function initAutoUpdater(window: BrowserWindow): void {
   })
 
   autoUpdater.on('error', (err) => {
+    const errorStr = err == null ? '' : err.message || err.toString()
+    if (errorStr.includes('404') || errorStr.includes('releases.atom')) {
+      console.log('[AutoUpdater] No published releases found on GitHub. Treating as up to date.')
+      broadcastStatus({ status: 'not-available', version: app.getVersion() })
+      return
+    }
     console.error('[AutoUpdater] Error:', err == null ? 'unknown' : (err.stack || err).toString())
     broadcastStatus({
       status: 'error',
-      error: err ? err.message : 'Unknown update error'
+      error: 'Unable to connect to update server.'
     })
   })
 
@@ -114,9 +120,27 @@ export function initAutoUpdater(window: BrowserWindow): void {
         }
       }
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : 'Check update error'
-      broadcastStatus({ status: 'error', error: errorMsg })
-      return { success: false, error: errorMsg }
+      const errorStr = (err instanceof Error ? err.message : String(err)) || ''
+      // If 404 / releases.atom not found, treat gracefully as up-to-date (no releases uploaded yet)
+      if (errorStr.includes('404') || errorStr.includes('releases.atom')) {
+        console.log('[AutoUpdater] GitHub returned 404 (no releases published yet). Treating as up to date.')
+        broadcastStatus({ status: 'not-available', version: app.getVersion() })
+        return {
+          success: true,
+          data: {
+            status: 'not-available',
+            version: app.getVersion()
+          }
+        }
+      }
+
+      const friendlyError =
+        errorStr.includes('net::ERR') || errorStr.includes('ENOTFOUND') || errorStr.includes('ECONNREFUSED')
+          ? 'Unable to connect to the update server. Please check your internet connection.'
+          : 'Could not complete update check. Please try again later.'
+
+      broadcastStatus({ status: 'error', error: friendlyError })
+      return { success: false, error: friendlyError }
     }
   })
 

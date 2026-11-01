@@ -33,7 +33,7 @@ const tabMeta: Record<NavTab, { section: string; title: string; hint: string }> 
   },
   database: {
     section: 'TOOLS',
-    title: '100% Offline SQLite 3 Database Engine',
+    title: 'Database Engine & Data Storage',
     hint: 'F9'
   }
 }
@@ -55,7 +55,6 @@ export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
         <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 border border-slate-700/60 rounded">
           KEY: <strong className="text-amber-400">{hint}</strong>
         </span>
-        <span className="text-[11px] font-mono text-emerald-400 font-medium">[LOCAL WAL MODE]</span>
       </div>
     </div>
   )
