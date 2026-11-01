@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
 const packageJsonPath = path.join(rootDir, 'package.json')
+const releaseNotesPath = path.join(rootDir, 'RELEASE_NOTES.md')
+const changelogPath = path.join(rootDir, 'CHANGELOG.md')
 
 function run(cmd, desc) {
   console.log(`\n\x1b[36m▶ ${desc || cmd}\x1b[0m`)
@@ -53,36 +55,51 @@ function bumpVersion(currentVersion, bumpType = 'patch') {
   )
 }
 
-// Parse command line arguments:
-// yarn release "What's new notes..."
-// yarn release minor "What's new notes..."
-// yarn release -m "What's new notes..."
+// 1. Read Release Notes from RELEASE_NOTES.md if available
+let fileNotes = ''
+if (fs.existsSync(releaseNotesPath)) {
+  const content = fs.readFileSync(releaseNotesPath, 'utf8').trim()
+  // Filter out guidance placeholder header if unchanged
+  const filtered = content
+    .split('\n')
+    .filter((line) => {
+      const l = line.trim().toLowerCase()
+      return !l.startsWith('# what\'s new') && !l.includes('write your release notes here')
+    })
+    .join('\n')
+    .trim()
+
+  if (filtered && filtered !== '-') {
+    fileNotes = filtered
+  }
+}
+
+// 2. Parse optional command line argument for bump type (e.g. `yarn release minor`)
 const rawArgs = process.argv.slice(2)
 let bumpArg = 'patch'
-let customNotes = ''
+let cliNotes = ''
 
 if (rawArgs.length > 0) {
   const first = rawArgs[0].toLowerCase()
   if (['patch', 'minor', 'major', 'current'].includes(first)) {
     bumpArg = first
-    customNotes = rawArgs.slice(1).join(' ').trim()
-  } else if (first === '-m' || first === '--notes') {
-    customNotes = rawArgs.slice(1).join(' ').trim()
+    cliNotes = rawArgs.slice(1).join(' ').trim()
   } else {
-    // If not a keyword, treat the whole argument string as the release notes
-    customNotes = rawArgs.join(' ').trim()
+    cliNotes = rawArgs.join(' ').trim()
   }
 }
+
+const activeNotes = fileNotes || cliNotes
 
 console.log('\x1b[35m====================================================\x1b[0m')
 console.log('\x1b[35m   Marg ERP - Local Build & Direct Release Pipeline \x1b[0m')
 console.log('\x1b[35m====================================================\x1b[0m')
 
-// 1. Run local verification checks before touching any code or git tags
+// Verification checks
 run('npm run typecheck', '1/6 Verifying TypeScript types')
 run('npm test', '2/6 Running unit tests')
 
-// 2. Read current package.json and determine new version
+// Read current package.json and determine new version
 const pkgRaw = fs.readFileSync(packageJsonPath, 'utf8')
 const pkg = JSON.parse(pkgRaw)
 const currentVersion = pkg.version || '0.1.0'
@@ -90,22 +107,25 @@ const newVersion = bumpVersion(currentVersion, bumpArg)
 const newTag = `v${newVersion}`
 
 console.log(`\n\x1b[32m✔ Version bump: v${currentVersion} ➔ ${newTag}\x1b[0m`)
-if (customNotes) {
-  console.log(`\x1b[33m📝 Release Notes:\x1b[0m ${customNotes}`)
+if (fileNotes) {
+  console.log(`\x1b[33m📝 Using release notes from RELEASE_NOTES.md\x1b[0m`)
+} else if (cliNotes) {
+  console.log(`\x1b[33m📝 Using release notes from command line argument\x1b[0m`)
 }
 
 pkg.version = newVersion
 fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8')
 
-// 3. Build electron app & Windows installer locally
+// Build electron app & Windows installer locally
 run('npm run build', '3/6 Compiling Vite & Electron application')
 run('npx electron-builder --win', '4/6 Building Windows installer (.exe, blockmap, latest.yml)')
 
-// 4. Git commit, tag, and push code
-run('git add .', '5/6 Staging changes and package.json')
+// Git commit, tag, and push code
+run('git add .', '5/6 Staging changes, package.json and RELEASE_NOTES.md')
 
-const commitMsg = customNotes
-  ? `release: ${newTag} - ${customNotes.split('\n')[0].replace(/"/g, "'")}`
+const firstLine = activeNotes ? activeNotes.split('\n')[0].replace(/^[-*#\s]+/, '').trim() : ''
+const commitMsg = firstLine
+  ? `release: ${newTag} - ${firstLine.replace(/"/g, "'")}`
   : `release: ${newTag}`
 
 try {
@@ -117,10 +137,10 @@ try {
 run(`git tag -a ${newTag} -m "Release ${newTag}"`, `Tagging ${newTag}`)
 run('git push origin HEAD --tags', 'Pushing branch and tags to GitHub')
 
-// 5. Prepare Release Notes Content
+// Prepare Markdown Release Notes for GitHub
 let releaseNotesContent = `## What's New in ${newTag}\n\n`
-if (customNotes) {
-  const lines = customNotes.split('\n').map((l) => l.trim()).filter(Boolean)
+if (activeNotes) {
+  const lines = activeNotes.split('\n').map((l) => l.trim()).filter(Boolean)
   const bullets = lines.map((l) => (l.startsWith('-') || l.startsWith('*') ? l : `- ${l}`)).join('\n')
   releaseNotesContent += `${bullets}\n\n`
 } else {
@@ -139,12 +159,30 @@ if (customNotes) {
   }
 }
 
-releaseNotesContent += `### System Details\n- **OS**: Windows 10 / 11 (64-bit)\n- **Database**: Local SQLite 3 WAL Engine\n- **Setup**: Standalone Offline NSIS Installer\n`
+releaseNotesContent += `### System Compatibility\n- **Operating System**: Windows 10 / 11 (64-bit)\n- **Database Engine**: Local SQLite 3 WAL Engine\n- **Package Format**: Standalone Offline NSIS Setup\n`
 
 const tempNotesFile = path.join(rootDir, 'dist', 'release-notes.md')
 fs.writeFileSync(tempNotesFile, releaseNotesContent, 'utf8')
 
-// 6. Upload release assets directly to GitHub using local gh CLI
+// Archive to CHANGELOG.md
+try {
+  const dateStr = new Date().toISOString().split('T')[0]
+  const changelogEntry = `\n## [${newTag}] - ${dateStr}\n\n${activeNotes || 'Maintenance updates.'}\n`
+  if (fs.existsSync(changelogPath)) {
+    const oldChangelog = fs.readFileSync(changelogPath, 'utf8')
+    fs.writeFileSync(changelogPath, changelogEntry + '\n' + oldChangelog, 'utf8')
+  } else {
+    fs.writeFileSync(changelogPath, `# Marg ERP Changelog\n${changelogEntry}`, 'utf8')
+  }
+} catch (e) {
+  console.warn('Could not update CHANGELOG.md:', e.message)
+}
+
+// Reset RELEASE_NOTES.md template for next release
+const nextTemplate = `# What's New in this Release\n\nWrite your release notes here before running \`yarn release\`:\n- \n`
+fs.writeFileSync(releaseNotesPath, nextTemplate, 'utf8')
+
+// Upload release assets directly to GitHub using local gh CLI
 const setupExe = path.join(rootDir, 'dist', `marg-erp-${newVersion}-setup.exe`)
 const blockmap = path.join(rootDir, 'dist', `marg-erp-${newVersion}-setup.exe.blockmap`)
 const latestYml = path.join(rootDir, 'dist', 'latest.yml')
