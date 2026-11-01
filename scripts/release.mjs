@@ -53,6 +53,27 @@ function bumpVersion(currentVersion, bumpType = 'patch') {
   )
 }
 
+// Parse command line arguments:
+// yarn release "What's new notes..."
+// yarn release minor "What's new notes..."
+// yarn release -m "What's new notes..."
+const rawArgs = process.argv.slice(2)
+let bumpArg = 'patch'
+let customNotes = ''
+
+if (rawArgs.length > 0) {
+  const first = rawArgs[0].toLowerCase()
+  if (['patch', 'minor', 'major', 'current'].includes(first)) {
+    bumpArg = first
+    customNotes = rawArgs.slice(1).join(' ').trim()
+  } else if (first === '-m' || first === '--notes') {
+    customNotes = rawArgs.slice(1).join(' ').trim()
+  } else {
+    // If not a keyword, treat the whole argument string as the release notes
+    customNotes = rawArgs.join(' ').trim()
+  }
+}
+
 console.log('\x1b[35m====================================================\x1b[0m')
 console.log('\x1b[35m   Marg ERP - Local Build & Direct Release Pipeline \x1b[0m')
 console.log('\x1b[35m====================================================\x1b[0m')
@@ -65,11 +86,13 @@ run('npm test', '2/6 Running unit tests')
 const pkgRaw = fs.readFileSync(packageJsonPath, 'utf8')
 const pkg = JSON.parse(pkgRaw)
 const currentVersion = pkg.version || '0.1.0'
-const bumpArg = process.argv[2] || 'patch'
 const newVersion = bumpVersion(currentVersion, bumpArg)
 const newTag = `v${newVersion}`
 
 console.log(`\n\x1b[32m✔ Version bump: v${currentVersion} ➔ ${newTag}\x1b[0m`)
+if (customNotes) {
+  console.log(`\x1b[33m📝 Release Notes:\x1b[0m ${customNotes}`)
+}
 
 pkg.version = newVersion
 fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8')
@@ -81,8 +104,12 @@ run('npx electron-builder --win', '4/6 Building Windows installer (.exe, blockma
 // 4. Git commit, tag, and push code
 run('git add .', '5/6 Staging changes and package.json')
 
+const commitMsg = customNotes
+  ? `release: ${newTag} - ${customNotes.split('\n')[0].replace(/"/g, "'")}`
+  : `release: ${newTag}`
+
 try {
-  execSync(`git commit -m "release: ${newTag}"`, { stdio: 'inherit', cwd: rootDir })
+  execSync(`git commit -m "${commitMsg}"`, { stdio: 'inherit', cwd: rootDir })
 } catch {
   console.log('No new code changes to commit, proceeding with tag...')
 }
@@ -90,7 +117,34 @@ try {
 run(`git tag -a ${newTag} -m "Release ${newTag}"`, `Tagging ${newTag}`)
 run('git push origin HEAD --tags', 'Pushing branch and tags to GitHub')
 
-// 5. Upload release assets directly to GitHub using local gh CLI
+// 5. Prepare Release Notes Content
+let releaseNotesContent = `## What's New in ${newTag}\n\n`
+if (customNotes) {
+  const lines = customNotes.split('\n').map((l) => l.trim()).filter(Boolean)
+  const bullets = lines.map((l) => (l.startsWith('-') || l.startsWith('*') ? l : `- ${l}`)).join('\n')
+  releaseNotesContent += `${bullets}\n\n`
+} else {
+  try {
+    const recentCommits = execSync(`git log v${currentVersion}..HEAD --oneline --no-merges`, { cwd: rootDir })
+      .toString()
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .slice(0, 8)
+      .map((c) => `- ${c.replace(/^[a-f0-9]+ /, '')}`)
+      .join('\n')
+    releaseNotesContent += recentCommits ? `${recentCommits}\n\n` : `- Maintenance, performance, and UI updates.\n\n`
+  } catch {
+    releaseNotesContent += `- Maintenance, performance, and UI updates.\n\n`
+  }
+}
+
+releaseNotesContent += `### System Details\n- **OS**: Windows 10 / 11 (64-bit)\n- **Database**: Local SQLite 3 WAL Engine\n- **Setup**: Standalone Offline NSIS Installer\n`
+
+const tempNotesFile = path.join(rootDir, 'dist', 'release-notes.md')
+fs.writeFileSync(tempNotesFile, releaseNotesContent, 'utf8')
+
+// 6. Upload release assets directly to GitHub using local gh CLI
 const setupExe = path.join(rootDir, 'dist', `marg-erp-${newVersion}-setup.exe`)
 const blockmap = path.join(rootDir, 'dist', `marg-erp-${newVersion}-setup.exe.blockmap`)
 const latestYml = path.join(rootDir, 'dist', 'latest.yml')
@@ -109,10 +163,13 @@ try {
 }
 
 if (releaseExists) {
-  run(`gh release upload ${newTag} ${uploadArgs} --clobber`, `Uploading to existing release ${newTag}`)
+  run(
+    `gh release upload ${newTag} ${uploadArgs} --clobber`,
+    `Uploading assets to existing release ${newTag}`
+  )
 } else {
   run(
-    `gh release create ${newTag} ${uploadArgs} --title "Marg ERP ${newTag}" --notes "Direct local release ${newTag}"`,
+    `gh release create ${newTag} ${uploadArgs} --title "Marg ERP ${newTag}" --notes-file "${tempNotesFile}"`,
     `Creating GitHub Release ${newTag}`
   )
 }
