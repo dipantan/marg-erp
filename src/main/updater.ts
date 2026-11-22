@@ -17,6 +17,19 @@ function broadcastStatus(status: UpdateStatus): void {
   }
 }
 
+function isNewerVersion(remote: string, current: string): boolean {
+  const parse = (v: string): number[] =>
+    v
+      .replace(/^[^\d]*/, '')
+      .split('.')
+      .map((n) => parseInt(n, 10) || 0)
+  const [rMaj = 0, rMin = 0, rPat = 0] = parse(remote)
+  const [cMaj = 0, cMin = 0, cPat = 0] = parse(current)
+  if (rMaj !== cMaj) return rMaj > cMaj
+  if (rMin !== cMin) return rMin > cMin
+  return rPat > cPat
+}
+
 export function initAutoUpdater(window: BrowserWindow): void {
   mainWindowRef = window
 
@@ -38,11 +51,11 @@ export function initAutoUpdater(window: BrowserWindow): void {
     })
   })
 
-  autoUpdater.on('update-not-available', (info) => {
-    console.log(`[AutoUpdater] Up to date (Current: v${info.version})`)
+  autoUpdater.on('update-not-available', () => {
+    console.log(`[AutoUpdater] Up to date (Current: v${app.getVersion()})`)
     broadcastStatus({
       status: 'not-available',
-      version: info.version
+      version: app.getVersion()
     })
   })
 
@@ -112,12 +125,18 @@ export function initAutoUpdater(window: BrowserWindow): void {
     try {
       broadcastStatus({ status: 'checking' })
       const res = await autoUpdater.checkForUpdates()
+      const currentVersion = app.getVersion()
+      const remoteVersion = res?.updateInfo?.version
+      const hasUpdate = Boolean(remoteVersion && isNewerVersion(remoteVersion, currentVersion))
+
+      const status: UpdateStatus = hasUpdate
+        ? { status: 'available', version: remoteVersion }
+        : { status: 'not-available', version: currentVersion }
+
+      broadcastStatus(status)
       return {
         success: true,
-        data: {
-          status: res?.updateInfo ? 'available' : 'not-available',
-          version: res?.updateInfo?.version || app.getVersion()
-        }
+        data: status
       }
     } catch (err: unknown) {
       const errorStr = (err instanceof Error ? err.message : String(err)) || ''

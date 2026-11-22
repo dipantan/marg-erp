@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Save } from 'lucide-react'
-import type { AppInfo, DatabaseStats } from '@shared/types'
+import { Save, RefreshCw, CheckCircle } from 'lucide-react'
+import type { AppInfo, DatabaseStats, UpdateStatus } from '@shared/types'
 
 interface StatusBarProps {
   appInfo?: AppInfo | null
   dbStats?: DatabaseStats | null
   storeName?: string
   storeCity?: string
+  updateStatus?: UpdateStatus | null
   onBackup?: () => void
 }
 
@@ -15,6 +16,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   dbStats,
   storeName,
   storeCity,
+  updateStatus,
   onBackup
 }) => {
   const [timeStr, setTimeStr] = useState<string>('')
@@ -72,14 +74,35 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         </div>
       )}
 
-      {/* Pane 5: App Version & Help Shortcut */}
+      {/* Pane 5: Live Auto-Update Status Indicator */}
+      {updateStatus?.status === 'downloading' && (
+        <div className="statusbar-pane text-indigo-300">
+          <RefreshCw size={11} className="spinning" />
+          <span className="font-mono text-[11px]">Updating {updateStatus.percent || 0}%</span>
+        </div>
+      )}
+      {updateStatus?.status === 'downloaded' && (
+        <div className="statusbar-pane">
+          <button
+            type="button"
+            onClick={() => window.api?.updater?.quitAndInstall?.()}
+            className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer bg-transparent border-0 p-0"
+            title="Click to restart and apply downloaded update"
+          >
+            <CheckCircle size={12} />
+            <span className="text-[11px]">Restart for v{updateStatus.version}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Pane 6: Dynamic App Version & Help Shortcut */}
       <div className="statusbar-pane">
-        <span className="text-slate-400">v{appInfo?.version || '0.1.0'}</span>
+        <span className="text-slate-400 font-mono font-medium">v{appInfo?.version || '0.1.6'}</span>
         <span className="text-slate-500">•</span>
         <span className="text-amber-400 font-mono text-[10px]">[F1: Help]</span>
       </div>
 
-      {/* Pane 6: System Digital Clock */}
+      {/* Pane 7: System Digital Clock */}
       <div className="statusbar-pane statusbar-pane-clock">
         <span className="font-mono font-semibold text-slate-200">{timeStr}</span>
       </div>

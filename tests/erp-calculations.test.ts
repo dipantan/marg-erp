@@ -156,3 +156,33 @@ describe('Requirement 3: Expiry Medicine Return to Supplier (Debit Note)', () =>
     expect(supplierDue).toBe(7950.0)
   })
 })
+
+describe('Application Versioning & Auto-Update Engine', () => {
+  const isNewerVersion = (remote: string, current: string): boolean => {
+    const parse = (v: string): number[] =>
+      v
+        .replace(/^[^\d]*/, '')
+        .split('.')
+        .map((n) => parseInt(n, 10) || 0)
+    const [rMaj = 0, rMin = 0, rPat = 0] = parse(remote)
+    const [cMaj = 0, cMin = 0, cPat = 0] = parse(current)
+    if (rMaj !== cMaj) return rMaj > cMaj
+    if (rMin !== cMin) return rMin > cMin
+    return rPat > cPat
+  }
+
+  it('correctly compares semantic versions for auto-updater checks', () => {
+    // Current is 0.1.6, remote is 0.1.6 => no update
+    expect(isNewerVersion('0.1.6', '0.1.6')).toBe(false)
+    expect(isNewerVersion('v0.1.6', '0.1.6')).toBe(false)
+
+    // Current is 0.1.6, remote is 0.1.7 => update available
+    expect(isNewerVersion('0.1.7', '0.1.6')).toBe(true)
+    expect(isNewerVersion('v0.2.0', '0.1.6')).toBe(true)
+    expect(isNewerVersion('1.0.0', '0.1.6')).toBe(true)
+
+    // Current is 0.1.6, remote is 0.1.5 => no update (already newer)
+    expect(isNewerVersion('0.1.5', '0.1.6')).toBe(false)
+    expect(isNewerVersion('0.1.0', '0.1.6')).toBe(false)
+  })
+})

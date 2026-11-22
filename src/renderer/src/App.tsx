@@ -24,12 +24,14 @@ import type {
   CreateProductInput,
   CreateBatchInput,
   CreateCustomerInput,
-  CreateInvoiceInput
+  CreateInvoiceInput,
+  UpdateStatus
 } from '@shared/types'
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard')
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const [dbStats, setDbStats] = useState<DatabaseStats | null>(null)
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
 
@@ -256,6 +258,17 @@ export const App: React.FC = () => {
     }
   }, [loadStats])
 
+  // Listen for background auto-updater status broadcasts
+  useEffect(() => {
+    if (window.api?.updater?.onStatusChange) {
+      const cleanup = window.api.updater.onStatusChange((status) => {
+        setUpdateStatus(status)
+      })
+      return cleanup
+    }
+    return undefined
+  }, [])
+
   // Native Electron System Menu Action Listener
   useEffect(() => {
     if (!window.api?.menu?.onAction) return
@@ -295,35 +308,43 @@ export const App: React.FC = () => {
         case 'action:help':
           setIsHelpModalOpen(true)
           break
-        case 'action:about':
-          alert(
-            'Marg ERP Desktop v0.1.0\n100% Offline SQLite 3 WAL Engine\nBuilt for Indian Retail Pharmacy'
-          )
+        case 'action:about': {
+          window.api.app.getInfo().then((res) => {
+            const ver = res.data?.version || appInfo?.version || '0.1.6'
+            alert(
+              `Marg ERP Desktop v${ver}\n100% Offline SQLite 3 WAL Engine\nBuilt for Indian Retail Pharmacy`
+            )
+          })
           break
+        }
         case 'action:check-updates':
           if (window.api?.updater) {
-            window.api.updater.checkForUpdates().then((res) => {
-              if (res.data?.status === 'not-available') {
-                alert(`Marg ERP is up to date!\nCurrent version: v${res.data.version || '0.1.0'}`)
-              } else if (res.data?.status === 'available') {
-                alert(
-                  `Update Available!\nMarg ERP v${res.data.version} is available and downloading in background.`
-                )
-              } else if (res.error) {
-                const is404 = res.error.includes('404') || res.error.includes('releases.atom')
-                if (is404) {
-                  alert(`Marg ERP is up to date!\nCurrent version: v0.1.0`)
-                } else {
-                  alert(`Marg ERP Update:\n${res.error}`)
+            Promise.all([window.api.app.getInfo(), window.api.updater.checkForUpdates()]).then(
+              ([infoRes, updateRes]) => {
+                const currentVer = infoRes.data?.version || appInfo?.version || '0.1.6'
+                if (updateRes.data?.status === 'not-available') {
+                  alert(`Marg ERP is up to date!\nCurrent version: v${updateRes.data.version || currentVer}`)
+                } else if (updateRes.data?.status === 'available') {
+                  alert(
+                    `Update Available!\nMarg ERP v${updateRes.data.version} is available and downloading in background.`
+                  )
+                } else if (updateRes.error) {
+                  const is404 =
+                    updateRes.error.includes('404') || updateRes.error.includes('releases.atom')
+                  if (is404) {
+                    alert(`Marg ERP is up to date!\nCurrent version: v${currentVer}`)
+                  } else {
+                    alert(`Marg ERP Update:\n${updateRes.error}`)
+                  }
                 }
               }
-            })
+            )
           }
           break
       }
     })
     return cleanup
-  }, [handleBackup])
+  }, [handleBackup, appInfo])
 
   // Global Alt+1..6 module switch listener (standard Windows desktop ERP shortcut)
   useEffect(() => {
@@ -487,6 +508,7 @@ export const App: React.FC = () => {
         dbStats={dbStats}
         storeName={storeSettings?.storeName}
         storeCity={storeSettings?.city}
+        updateStatus={updateStatus}
         onBackup={handleBackup}
       />
 

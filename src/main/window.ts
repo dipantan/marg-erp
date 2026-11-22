@@ -1,4 +1,4 @@
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow, shell, app } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
@@ -10,7 +10,7 @@ export function createMainWindow(): BrowserWindow {
     minHeight: 700,
     show: false,
     autoHideMenuBar: false,
-    title: 'Marg ERP',
+    title: `Marg ERP v${app.getVersion()}`,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
