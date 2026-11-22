@@ -8,6 +8,8 @@ import { DashboardView } from './views/DashboardView'
 import { ItemsView } from './views/ItemsView'
 import { InvoicesView } from './views/InvoicesView'
 import { CustomersView } from './views/CustomersView'
+import { BalanceSheetView } from './views/BalanceSheetView'
+import { ExpiryReturnsView } from './views/ExpiryReturnsView'
 import { DatabaseView } from './views/DatabaseView'
 import { StoreSettingsView } from './views/StoreSettingsView'
 import { CashMemoPrint } from './components/CashMemoPrint'
@@ -341,8 +343,14 @@ export const App: React.FC = () => {
           setCurrentTab('customers')
         } else if (e.key === '5') {
           e.preventDefault()
-          setCurrentTab('settings')
+          setCurrentTab('balanceSheet')
         } else if (e.key === '6') {
+          e.preventDefault()
+          setCurrentTab('expiryReturns')
+        } else if (e.key === '7') {
+          e.preventDefault()
+          setCurrentTab('settings')
+        } else if (e.key === '8') {
           e.preventDefault()
           setCurrentTab('database')
         }
@@ -434,6 +442,24 @@ export const App: React.FC = () => {
                 onSearchChange={setCustomerSearch}
                 onAddCustomer={handleAddCustomer}
                 onDeleteCustomer={handleDeleteCustomer}
+              />
+            )}
+
+            {currentTab === 'balanceSheet' && (
+              <BalanceSheetView
+                customers={customers}
+                onRefreshCustomers={() => loadCustomers(customerSearch)}
+              />
+            )}
+
+            {currentTab === 'expiryReturns' && (
+              <ExpiryReturnsView
+                store={storeSettings}
+                onStockUpdated={() => {
+                  loadItems()
+                  loadExpiringSoon()
+                  loadStats()
+                }}
               />
             )}
 

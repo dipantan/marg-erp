@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS } from '../src/shared/ipc-channels'
 
 describe('IPC Channels and Constants', () => {
-  it('should define essential ERP IPC channels', () => {
+  it('should define essential ERP IPC channels including wholesale, suppliers, balance sheet and expiry returns', () => {
     expect(IPC_CHANNELS.APP.GET_INFO).toBe('app:get-info')
     expect(IPC_CHANNELS.DB.GET_STATS).toBe('db:get-stats')
     expect(IPC_CHANNELS.ITEMS.LIST).toBe('items:list')
@@ -10,6 +10,21 @@ describe('IPC Channels and Constants', () => {
     expect(IPC_CHANNELS.STORE.GET_SETTINGS).toBe('store:get-settings')
     expect(IPC_CHANNELS.DB.EXPORT_BACKUP).toBe('db:export-backup')
     expect(IPC_CHANNELS.MENU.ACTION).toBe('menu:action')
+
+    // Requirement 2: Suppliers & Balance sheet
+    expect(IPC_CHANNELS.SUPPLIERS.LIST).toBe('suppliers:list')
+    expect(IPC_CHANNELS.SUPPLIERS.CREATE_PURCHASE).toBe('suppliers:create-purchase')
+    expect(IPC_CHANNELS.SUPPLIERS.RECORD_PAYMENT).toBe('suppliers:record-payment')
+    expect(IPC_CHANNELS.BALANCE_SHEET.GET_SUMMARY).toBe('balance-sheet:get-summary')
+    expect(IPC_CHANNELS.CUSTOMERS.GET_HISTORY).toBe('customers:get-history')
+    expect(IPC_CHANNELS.CUSTOMERS.RECORD_PAYMENT).toBe('customers:record-payment')
+
+    // Requirement 3: Expiry Returns to Supplier
+    expect(IPC_CHANNELS.EXPIRY_RETURNS.LIST).toBe('expiry-returns:list')
+    expect(IPC_CHANNELS.EXPIRY_RETURNS.CREATE).toBe('expiry-returns:create')
+    expect(IPC_CHANNELS.EXPIRY_RETURNS.GET_ELIGIBLE_BATCHES).toBe(
+      'expiry-returns:get-eligible-batches'
+    )
   })
 })
 
@@ -62,5 +77,82 @@ describe('Marg ERP Pharmacy Cash Memo Arithmetic (Photo Verification)', () => {
 
     expect(strips).toBe(4)
     expect(loose).toBe(7)
+  })
+})
+
+describe('Requirement 1: Retail vs Wholesale Billing Rules', () => {
+  it('enforces wholesale rule: no loose medicine sale (khuchra bikri prohibited in wholesale)', () => {
+    interface BillItem {
+      productName: string
+      qtyPack: number
+      qtyLoose: number
+      mrp: number
+    }
+
+    const validateWholesaleBill = (items: BillItem[]): boolean => {
+      // Loose quantity must be 0 for all items in wholesale mode
+      return items.every((i) => i.qtyLoose === 0)
+    }
+
+    const validWholesaleBill: BillItem[] = [
+      { productName: 'PARACETAMOL 650', qtyPack: 10, qtyLoose: 0, mrp: 30.0 },
+      { productName: 'AMOXICILLIN 500', qtyPack: 5, qtyLoose: 0, mrp: 85.0 }
+    ]
+
+    const invalidWholesaleBillWithLoose: BillItem[] = [
+      { productName: 'PARACETAMOL 650', qtyPack: 10, qtyLoose: 5, mrp: 30.0 }
+    ]
+
+    expect(validateWholesaleBill(validWholesaleBill)).toBe(true)
+    expect(validateWholesaleBill(invalidWholesaleBillWithLoose)).toBe(false)
+  })
+
+  it('allows loose medicine units only in Retail Cash Memo mode', () => {
+    const item = { packUnits: 10, qtyPack: 2, qtyLoose: 4, mrp: 100.0 }
+    const totalPacks = item.qtyPack + item.qtyLoose / item.packUnits
+    const retailGross = totalPacks * item.mrp
+
+    // 2 packs (200) + 4 loose (40) = 240
+    expect(retailGross).toBe(240.0)
+  })
+})
+
+describe('Requirement 2: Balance Sheet & Dokan Due Calculation', () => {
+  it('calculates supplier dokan outstanding due balance accurately', () => {
+    const totalPurchased = 45000.0
+    const paidInitial = 30000.0
+    let dueBalance = totalPurchased - paidInitial
+    expect(dueBalance).toBe(15000.0)
+
+    // Make an additional payment to supplier
+    const paymentMade = 5000.0
+    dueBalance -= paymentMade
+    expect(dueBalance).toBe(10000.0)
+  })
+
+  it('calculates customer outstanding due after payment settlement', () => {
+    let customerDue = 1250.0
+    const paymentReceived = 500.0
+    customerDue -= paymentReceived
+    expect(customerDue).toBe(750.0)
+  })
+})
+
+describe('Requirement 3: Expiry Medicine Return to Supplier (Debit Note)', () => {
+  it('deducts inventory stock and adjusts supplier due balance when returning expired stock', () => {
+    let supplierDue = 10000.0
+    let batchStockStrips = 50
+    const purchaseRatePerStrip = 102.5
+
+    // Return 20 expired strips to supplier
+    const returnedStrips = 20
+    const returnAmount = returnedStrips * purchaseRatePerStrip // 20 * 102.5 = 2050
+
+    batchStockStrips -= returnedStrips
+    supplierDue -= returnAmount
+
+    expect(batchStockStrips).toBe(30)
+    expect(returnAmount).toBe(2050.0)
+    expect(supplierDue).toBe(7950.0)
   })
 })

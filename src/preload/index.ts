@@ -40,7 +40,10 @@ const apiBridge: IpcApi = {
     getById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMERS.GET_BY_ID, id),
     create: (input) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMERS.CREATE, input),
     update: (input) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMERS.UPDATE, input),
-    delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMERS.DELETE, id)
+    delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMERS.DELETE, id),
+    getHistory: (customerId: number) =>
+      ipcRenderer.invoke(IPC_CHANNELS.CUSTOMERS.GET_HISTORY, customerId),
+    recordPayment: (input) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMERS.RECORD_PAYMENT, input)
   },
   invoices: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.INVOICES.LIST),
@@ -51,6 +54,27 @@ const apiBridge: IpcApi = {
     holdBill: (bill) => ipcRenderer.invoke(IPC_CHANNELS.INVOICES.HOLD_BILL, bill),
     getHeldBills: () => ipcRenderer.invoke(IPC_CHANNELS.INVOICES.GET_HELD_BILLS),
     removeHeldBill: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.INVOICES.REMOVE_HELD_BILL, id)
+  },
+  suppliers: {
+    list: (searchQuery?: string) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.LIST, searchQuery),
+    getById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.GET_BY_ID, id),
+    create: (input) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.CREATE, input),
+    update: (input) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.UPDATE, input),
+    delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.DELETE, id),
+    listPurchases: (supplierId?: number) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.LIST_PURCHASES, supplierId),
+    createPurchase: (input) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.CREATE_PURCHASE, input),
+    listPayments: (supplierId?: number) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.LIST_PAYMENTS, supplierId),
+    recordPayment: (input) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS.RECORD_PAYMENT, input)
+  },
+  expiryReturns: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.EXPIRY_RETURNS.LIST),
+    create: (input) => ipcRenderer.invoke(IPC_CHANNELS.EXPIRY_RETURNS.CREATE, input),
+    getEligibleBatches: () => ipcRenderer.invoke(IPC_CHANNELS.EXPIRY_RETURNS.GET_ELIGIBLE_BATCHES)
+  },
+  balanceSheet: {
+    getSummary: () => ipcRenderer.invoke(IPC_CHANNELS.BALANCE_SHEET.GET_SUMMARY)
   },
   menu: {
     onAction: (callback: (action: string) => void) => {
@@ -64,6 +88,10 @@ const apiBridge: IpcApi = {
     }
   },
   updater: {
+    check: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.CHECK),
+    download: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.DOWNLOAD),
+    install: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.INSTALL),
+    status: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.STATUS),
     checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.CHECK),
     downloadUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.DOWNLOAD),
     quitAndInstall: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER.INSTALL),

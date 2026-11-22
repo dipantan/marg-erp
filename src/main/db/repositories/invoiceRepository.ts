@@ -5,6 +5,10 @@ interface InvoiceRow {
   id: number
   invoice_no: string
   invoice_date: string
+  invoice_type: 'RETAIL' | 'WHOLESALE' | null
+  customer_id: number | null
+  customer_dl_no: string | null
+  customer_gstin: string | null
   patient_name: string
   patient_meta: string | null
   patient_address: string | null
@@ -47,6 +51,10 @@ function mapInvoiceRow(row: InvoiceRow, items: InvoiceLineItem[] = []): Invoice 
     id: row.id,
     invoiceNumber: row.invoice_no,
     invoiceDate: row.invoice_date,
+    invoiceType: (row.invoice_type as 'RETAIL' | 'WHOLESALE') || 'RETAIL',
+    customerId: row.customer_id ?? undefined,
+    customerDlNo: row.customer_dl_no || '',
+    customerGstin: row.customer_gstin || '',
     patientName: row.patient_name,
     patientAgeGender: row.patient_meta || '',
     patientAddress: row.patient_address || '',
@@ -89,10 +97,18 @@ function mapItemRow(row: InvoiceItemRow): InvoiceLineItem {
 }
 
 export const invoiceRepository = {
-  list(): Invoice[] {
+  list(invoiceType?: 'RETAIL' | 'WHOLESALE'): Invoice[] {
     const db = getDatabase()
-    const stmt = db.prepare('SELECT * FROM invoices ORDER BY id DESC LIMIT 100')
-    const invoices = stmt.all() as InvoiceRow[]
+    let stmt
+    let invoices: InvoiceRow[]
+
+    if (invoiceType) {
+      stmt = db.prepare('SELECT * FROM invoices WHERE invoice_type = ? ORDER BY id DESC LIMIT 100')
+      invoices = stmt.all(invoiceType) as InvoiceRow[]
+    } else {
+      stmt = db.prepare('SELECT * FROM invoices ORDER BY id DESC LIMIT 100')
+      invoices = stmt.all() as InvoiceRow[]
+    }
 
     const itemStmt = db.prepare('SELECT * FROM invoice_items WHERE invoice_id = ?')
     return invoices.map((inv: InvoiceRow) => {
@@ -112,23 +128,26 @@ export const invoiceRepository = {
     return mapInvoiceRow(row, items)
   },
 
-  generateNextInvoiceNumber(): string {
+  generateNextInvoiceNumber(invoiceType: 'RETAIL' | 'WHOLESALE' = 'RETAIL'): string {
     const db = getDatabase()
-    const lastRow = db.prepare('SELECT invoice_no FROM invoices ORDER BY id DESC LIMIT 1').get() as
-      { invoice_no?: string } | undefined
+    const prefix = invoiceType === 'WHOLESALE' ? 'W' : 'A'
+
+    const lastRow = db
+      .prepare('SELECT invoice_no FROM invoices WHERE invoice_no LIKE ? ORDER BY id DESC LIMIT 1')
+      .get(`${prefix}%`) as { invoice_no?: string } | undefined
 
     if (!lastRow || !lastRow.invoice_no) {
-      return 'A060880'
+      return invoiceType === 'WHOLESALE' ? 'W000100' : 'A060880'
     }
 
     const clean = lastRow.invoice_no.replace(/\D/g, '')
     const num = parseInt(clean, 10)
     if (isNaN(num)) {
-      return 'A060880'
+      return invoiceType === 'WHOLESALE' ? 'W000100' : 'A060880'
     }
 
     const next = (num + 1).toString().padStart(6, '0')
-    return `A${next}`
+    return `${prefix}${next}`
   },
 
   create(input: CreateInvoiceInput): Invoice {
@@ -138,21 +157,35 @@ export const invoiceRepository = {
       throw new Error('An invoice must contain at least one medicine item')
     }
 
-    const invoiceNumber = this.generateNextInvoiceNumber()
+    const invoiceType = input.invoiceType || 'RETAIL'
+
+    // Requirement 1: Wholesale cannot contain loose medicine sales
+    if (invoiceType === 'WHOLESALE') {
+      const hasLoose = input.items.some((item) => (Number(item.qtyLoose) || 0) > 0)
+      if (hasLoose) {
+        throw new Error(
+          'Wholesale sale does not allow loose medicine (পাইকারি বিলে খুচরা ওষুধ বিক্রি করা যাবে না)। Please bill only full packs/strips.'
+        )
+      }
+    }
+
+    const invoiceNumber = this.generateNextInvoiceNumber(invoiceType)
 
     let mrpTotal = 0
     let discountTotal = 0
     let totalTax = 0
 
-    // Compute line amounts matching Page 21-22 of the PDF
     const computedItems = input.items.map((item) => {
       const unitsPerPack = item.unitsPerPack || 10
+      const safeQtyLoose = invoiceType === 'WHOLESALE' ? 0 : Number(item.qtyLoose) || 0
+      const safeQtyPack = Number(item.qtyPack) || 0
       const unitPrice = item.mrp / unitsPerPack
-      const grossAmount = Number((item.qtyPack * item.mrp + item.qtyLoose * unitPrice).toFixed(2))
-      const discAmount = Number(((grossAmount * item.discountPercent) / 100).toFixed(2))
+
+      const grossAmount = Number((safeQtyPack * item.mrp + safeQtyLoose * unitPrice).toFixed(2))
+      const discAmount = Number(((grossAmount * (item.discountPercent || 0)) / 100).toFixed(2))
       const netAmount = grossAmount - discAmount
 
-      // Retail MRP is inclusive of GST
+      // MRP is inclusive of GST
       const taxableVal = netAmount / (1 + (item.gstPercent || 5) / 100)
       const lineGst = netAmount - taxableVal
 
@@ -162,8 +195,10 @@ export const invoiceRepository = {
 
       return {
         ...item,
+        qtyPack: safeQtyPack,
+        qtyLoose: safeQtyLoose,
         grossAmount,
-        amount: grossAmount // The sample bill displays line gross MRP value in the AMOUNT column
+        amount: grossAmount
       }
     })
 
@@ -175,13 +210,15 @@ export const invoiceRepository = {
 
     const insertInvoiceStmt = db.prepare(`
       INSERT INTO invoices (
-        invoice_no, invoice_date, patient_name, patient_meta, patient_address,
-        patient_phone, dr_name, dr_reg_no, payment_mode, payment_status,
-        mrp_total, discount_total, taxable_amount, cgst_total, sgst_total, round_off, grand_total, notes
+        invoice_no, invoice_date, invoice_type, customer_id, customer_dl_no, customer_gstin,
+        patient_name, patient_meta, patient_address, patient_phone, dr_name, dr_reg_no,
+        payment_mode, payment_status, mrp_total, discount_total, taxable_amount,
+        cgst_total, sgst_total, round_off, grand_total, notes
       ) VALUES (
-        @invoice_no, @invoice_date, @patient_name, @patient_meta, @patient_address,
-        @patient_phone, @dr_name, @dr_reg_no, @payment_mode, @payment_status,
-        @mrp_total, @discount_total, @taxable_amount, @cgst_total, @sgst_total, @round_off, @grand_total, @notes
+        @invoice_no, @invoice_date, @invoice_type, @customer_id, @customer_dl_no, @customer_gstin,
+        @patient_name, @patient_meta, @patient_address, @patient_phone, @dr_name, @dr_reg_no,
+        @payment_mode, @payment_status, @mrp_total, @discount_total, @taxable_amount,
+        @cgst_total, @sgst_total, @round_off, @grand_total, @notes
       )
     `)
 
@@ -208,6 +245,10 @@ export const invoiceRepository = {
       const invInfo = insertInvoiceStmt.run({
         invoice_no: invoiceNumber,
         invoice_date: input.invoiceDate,
+        invoice_type: invoiceType,
+        customer_id: input.customerId ?? null,
+        customer_dl_no: input.customerDlNo?.trim() || '',
+        customer_gstin: input.customerGstin?.trim() || '',
         patient_name: input.patientName.trim().toUpperCase(),
         patient_meta: input.patientAgeGender || '',
         patient_address: input.patientAddress || '',
@@ -250,6 +291,18 @@ export const invoiceRepository = {
         if (item.batchId) {
           const looseUnitsToDeduct = item.qtyPack * item.unitsPerPack + item.qtyLoose
           deductBatchStockStmt.run(looseUnitsToDeduct, item.batchId)
+        }
+      }
+
+      // 3. If sale is on DUE / CREDIT and customer is specified, add to customer's outstanding balance
+      if (input.paymentMode === 'DUE/CREDIT' || input.paymentStatus === 'PENDING') {
+        if (input.customerId) {
+          db.prepare(`
+            UPDATE customers
+            SET current_balance = current_balance + ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).run(grandTotal, input.customerId)
         }
       }
     })

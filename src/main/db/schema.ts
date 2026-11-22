@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS store_settings (
   delivery_phone TEXT DEFAULT '9732101206',
   gstin TEXT NOT NULL DEFAULT '19ALGPS1320N1ZT',
   drug_lic_no TEXT NOT NULL DEFAULT 'WD-6172-S/WD-6173-SB / WB/DDP/NBOR/R/791800',
+  drug_lic_no_wholesale TEXT DEFAULT 'WD-6172-W/WD-6173-WB / WB/DDP/NBOR/W/892100',
   fssai_no TEXT DEFAULT '22817005000401',
   registered_pharmacist TEXT DEFAULT 'SUJIT BHOWMIK (D.Pharm)',
   pharmacist_reg_no TEXT DEFAULT 'A-29233',
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS product_batches (
   mrp REAL NOT NULL,
   purchase_rate REAL DEFAULT 0,
   stock_loose_units INTEGER NOT NULL DEFAULT 0,
+  supplier_id INTEGER,
   is_active INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -67,11 +69,15 @@ CREATE TABLE IF NOT EXISTS customers (
 
 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name COLLATE NOCASE);
 
--- 5. Invoices (Cash Memo / Prescription Register)
+-- 5. Invoices (Retail Cash Memo & Wholesale Tax Invoice)
 CREATE TABLE IF NOT EXISTS invoices (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   invoice_no TEXT UNIQUE NOT NULL,
   invoice_date TEXT NOT NULL,
+  invoice_type TEXT DEFAULT 'RETAIL', -- 'RETAIL' or 'WHOLESALE'
+  customer_id INTEGER,
+  customer_dl_no TEXT DEFAULT '',
+  customer_gstin TEXT DEFAULT '',
   patient_name TEXT NOT NULL,
   patient_meta TEXT DEFAULT '',
   patient_address TEXT DEFAULT '',
@@ -93,6 +99,8 @@ CREATE TABLE IF NOT EXISTS invoices (
 
 CREATE INDEX IF NOT EXISTS idx_invoices_no ON invoices(invoice_no);
 CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(invoice_date);
+CREATE INDEX IF NOT EXISTS idx_invoices_type ON invoices(invoice_type);
+CREATE INDEX IF NOT EXISTS idx_invoices_cust ON invoices(customer_id);
 
 -- 6. Invoice Line Items
 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -125,7 +133,89 @@ CREATE TABLE IF NOT EXISTS draft_invoices (
   payload_json TEXT NOT NULL
 );
 
--- 8. Full-Text Search Virtual Table for instant auto-complete
+-- 8. Suppliers / Dokans Master
+CREATE TABLE IF NOT EXISTS suppliers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  phone TEXT DEFAULT '',
+  gstin TEXT DEFAULT '',
+  drug_lic_no TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  total_purchases REAL NOT NULL DEFAULT 0,
+  total_paid REAL NOT NULL DEFAULT 0,
+  current_balance REAL NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(name COLLATE NOCASE);
+
+-- 9. Supplier Inward Purchases (Bills from Dokan)
+CREATE TABLE IF NOT EXISTS supplier_purchases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+  bill_no TEXT NOT NULL,
+  bill_date TEXT NOT NULL,
+  total_amount REAL NOT NULL DEFAULT 0,
+  paid_amount REAL NOT NULL DEFAULT 0,
+  due_amount REAL NOT NULL DEFAULT 0,
+  notes TEXT DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_purchases_supplier ON supplier_purchases(supplier_id);
+
+-- 10. Supplier Payments (Payment towards Dokan Due)
+CREATE TABLE IF NOT EXISTS supplier_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+  purchase_id INTEGER REFERENCES supplier_purchases(id) ON DELETE SET NULL,
+  payment_date TEXT NOT NULL,
+  amount REAL NOT NULL,
+  payment_mode TEXT DEFAULT 'CASH',
+  notes TEXT DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_supplier ON supplier_payments(supplier_id);
+
+-- 11. Customer Payments (Payment towards Customer Due)
+CREATE TABLE IF NOT EXISTS customer_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  payment_date TEXT NOT NULL,
+  amount REAL NOT NULL,
+  payment_mode TEXT DEFAULT 'CASH',
+  notes TEXT DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_payments_cust ON customer_payments(customer_id);
+
+-- 12. Expiry Returns to Supplier (Debit Note)
+CREATE TABLE IF NOT EXISTS expiry_returns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  return_no TEXT UNIQUE NOT NULL,
+  return_date TEXT NOT NULL,
+  supplier_id INTEGER NOT NULL REFERENCES suppliers(id),
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  batch_id INTEGER NOT NULL REFERENCES product_batches(id),
+  product_name TEXT NOT NULL,
+  batch_no TEXT NOT NULL,
+  exp_date TEXT NOT NULL,
+  pack_label TEXT NOT NULL,
+  qty_strips INTEGER NOT NULL,
+  purchase_rate REAL NOT NULL,
+  total_amount REAL NOT NULL,
+  status TEXT DEFAULT 'RETURNED',
+  notes TEXT DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_expiry_supplier ON expiry_returns(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_expiry_batch ON expiry_returns(batch_id);
+
+-- 13. Full-Text Search Virtual Table for instant auto-complete
 CREATE VIRTUAL TABLE IF NOT EXISTS products_fts USING fts5(
   name,
   hsn_code,

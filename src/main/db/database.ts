@@ -34,6 +34,79 @@ export function getDatabasePath(): string {
   return resolvedDbPath
 }
 
+function runMigrations(db: Database.Database): void {
+  // Safe migrations for existing SQLite databases
+  const checkColumn = (table: string, column: string): boolean => {
+    try {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+      return cols.some((c) => c.name.toLowerCase() === column.toLowerCase())
+    } catch {
+      return false
+    }
+  }
+
+  // 1. store_settings wholesale DL
+  if (!checkColumn('store_settings', 'drug_lic_no_wholesale')) {
+    try {
+      db.exec(`
+        ALTER TABLE store_settings
+        ADD COLUMN drug_lic_no_wholesale TEXT DEFAULT 'WD-6172-W/WD-6173-WB / WB/DDP/NBOR/W/892100';
+      `)
+    } catch (err) {
+      console.warn('Migration error on store_settings:', err)
+    }
+  }
+
+  // 2. invoices: invoice_type, customer_id, customer_dl_no, customer_gstin
+  if (!checkColumn('invoices', 'invoice_type')) {
+    try {
+      db.exec(`
+        ALTER TABLE invoices ADD COLUMN invoice_type TEXT DEFAULT 'RETAIL';
+      `)
+    } catch (err) {
+      console.warn('Migration error on invoices.invoice_type:', err)
+    }
+  }
+  if (!checkColumn('invoices', 'customer_id')) {
+    try {
+      db.exec(`
+        ALTER TABLE invoices ADD COLUMN customer_id INTEGER;
+      `)
+    } catch (err) {
+      console.warn('Migration error on invoices.customer_id:', err)
+    }
+  }
+  if (!checkColumn('invoices', 'customer_dl_no')) {
+    try {
+      db.exec(`
+        ALTER TABLE invoices ADD COLUMN customer_dl_no TEXT DEFAULT '';
+      `)
+    } catch (err) {
+      console.warn('Migration error on invoices.customer_dl_no:', err)
+    }
+  }
+  if (!checkColumn('invoices', 'customer_gstin')) {
+    try {
+      db.exec(`
+        ALTER TABLE invoices ADD COLUMN customer_gstin TEXT DEFAULT '';
+      `)
+    } catch (err) {
+      console.warn('Migration error on invoices.customer_gstin:', err)
+    }
+  }
+
+  // 3. product_batches: supplier_id
+  if (!checkColumn('product_batches', 'supplier_id')) {
+    try {
+      db.exec(`
+        ALTER TABLE product_batches ADD COLUMN supplier_id INTEGER;
+      `)
+    } catch (err) {
+      console.warn('Migration error on product_batches.supplier_id:', err)
+    }
+  }
+}
+
 export function initDatabase(): Database.Database {
   if (dbInstance) return dbInstance
 
@@ -50,6 +123,9 @@ export function initDatabase(): Database.Database {
 
   // Execute schema
   dbInstance.exec(CREATE_TABLES_SQL)
+
+  // Run column migrations if tables already existed
+  runMigrations(dbInstance)
 
   // Initialize store settings & sample data if newly created
   initStoreSettings(dbInstance)
@@ -74,7 +150,7 @@ export function initStoreSettings(db: Database.Database): void {
       `
       INSERT INTO store_settings (
         id, store_name, sub_title, address_line1, address_line2, district_state,
-        mobile, delivery_phone, gstin, drug_lic_no, fssai_no,
+        mobile, delivery_phone, gstin, drug_lic_no, drug_lic_no_wholesale, fssai_no,
         registered_pharmacist, pharmacist_reg_no, upi_id, jurisdiction
       ) VALUES (
         1,
@@ -87,6 +163,7 @@ export function initStoreSettings(db: Database.Database): void {
         '9732101206',
         '19ALGPS1320N1ZT',
         'WD-6172-S/WD-6173-SB / WB/DDP/NBOR/R/791800',
+        'WD-6172-W/WD-6173-WB / WB/DDP/NBOR/W/892100',
         '22817005000401',
         'SUJIT BHOWMIK (D.Pharm)',
         'A-29233',
@@ -109,6 +186,7 @@ interface StoreSettingsRow {
   delivery_phone: string | null
   gstin: string
   drug_lic_no: string
+  drug_lic_no_wholesale?: string | null
   fssai_no: string | null
   registered_pharmacist: string | null
   pharmacist_reg_no: string | null
@@ -133,6 +211,8 @@ export function getStoreSettings(): StoreSettings {
     alternatePhone: row.delivery_phone || '9732101206',
     gstin: row.gstin,
     drugLicNo: row.drug_lic_no,
+    wholesaleDrugLicNo:
+      row.drug_lic_no_wholesale || 'WD-6172-W/WD-6173-WB / WB/DDP/NBOR/W/892100',
     fssaiNo: row.fssai_no || '22817005000401',
     registeredPharmacist: row.registered_pharmacist || 'SUJIT BHOWMIK (D.Pharm)',
     pharmacistRegNo: row.pharmacist_reg_no || 'A-29233',
@@ -153,6 +233,7 @@ export function updateStoreSettings(settings: Partial<StoreSettings>): StoreSett
     delivery_phone: settings.alternatePhone ?? current.alternatePhone,
     gstin: settings.gstin ?? current.gstin,
     drug_lic_no: settings.drugLicNo ?? current.drugLicNo,
+    drug_lic_no_wholesale: settings.wholesaleDrugLicNo ?? current.wholesaleDrugLicNo,
     fssai_no: settings.fssaiNo ?? current.fssaiNo,
     registered_pharmacist: settings.registeredPharmacist ?? current.registeredPharmacist,
     pharmacist_reg_no: settings.pharmacistRegNo ?? current.pharmacistRegNo,
@@ -170,6 +251,7 @@ export function updateStoreSettings(settings: Partial<StoreSettings>): StoreSett
       delivery_phone = @delivery_phone,
       gstin = @gstin,
       drug_lic_no = @drug_lic_no,
+      drug_lic_no_wholesale = @drug_lic_no_wholesale,
       fssai_no = @fssai_no,
       registered_pharmacist = @registered_pharmacist,
       pharmacist_reg_no = @pharmacist_reg_no,
@@ -216,6 +298,18 @@ export function getDatabaseStats(): DatabaseStats {
     totalRevenue: number
   }
 
+  const suppCount = db
+    .prepare(
+      'SELECT COUNT(*) as count, COALESCE(SUM(current_balance), 0) as totalDue FROM suppliers'
+    )
+    .get() as { count: number; totalDue: number }
+
+  const custDue = db
+    .prepare(
+      'SELECT COALESCE(SUM(current_balance), 0) as totalDue FROM customers WHERE current_balance > 0'
+    )
+    .get() as { totalDue: number }
+
   const currentYearMonth = new Date().getFullYear() * 100 + (new Date().getMonth() + 1)
   const alertYearMonth = currentYearMonth + 100 // 1 year ahead
 
@@ -249,6 +343,9 @@ export function getDatabaseStats(): DatabaseStats {
     totalRevenue: Math.round(invCount.totalRevenue * 100) / 100,
     expiringSoonCount: expiringSoonRow.count,
     lowStockCount: lowStockRow.count,
+    totalSuppliers: suppCount.count,
+    totalSupplierDue: Math.round(suppCount.totalDue * 100) / 100,
+    totalCustomerDue: Math.round(custDue.totalDue * 100) / 100,
     lastUpdated: new Date().toISOString()
   }
 }
@@ -316,6 +413,38 @@ export function removeHeldBill(id: string): boolean {
 export function seedInitialDataIfEmpty(db: Database.Database): boolean {
   const countRow = db.prepare('SELECT COUNT(*) as count FROM products').get() as { count: number }
   if (countRow.count > 0) {
+    // If products already exist, check if suppliers exist and seed sample suppliers if missing
+    const suppCount = db.prepare('SELECT COUNT(*) as count FROM suppliers').get() as {
+      count: number
+    }
+    if (suppCount.count === 0) {
+      const insSupp = db.prepare(`
+        INSERT INTO suppliers (name, phone, gstin, drug_lic_no, address, total_purchases, total_paid, current_balance)
+        VALUES (@name, @phone, @gstin, @drug_lic_no, @address, @total_purchases, @total_paid, @current_balance)
+      `)
+      insSupp.run({
+        name: 'M/S BENGAL PHARMA DISTRIBUTORS',
+        phone: '9832011223',
+        gstin: '19AAACB1234F1Z5',
+        drug_lic_no: 'DL-20B-1082 / DL-21B-1083',
+        address: 'STATION ROAD, RAIGANJ, UTTAR DINAJPUR',
+        total_purchases: 45000,
+        total_paid: 35000,
+        current_balance: 10000
+      })
+      insSupp.run({
+        name: 'MEDPLUS WHOLESALE AGENCIES',
+        phone: '9434055667',
+        gstin: '19AABCM9876K1Z2',
+        drug_lic_no: 'DL-20B-5541 / DL-21B-5542',
+        address: 'MALDA TOWN COMMERCIAL COMPLEX',
+        total_purchases: 32000,
+        total_paid: 27000,
+        current_balance: 5000
+      })
+      // Link existing batches to supplier 1
+      db.prepare('UPDATE product_batches SET supplier_id = 1 WHERE supplier_id IS NULL').run()
+    }
     return false
   }
 
@@ -325,8 +454,8 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
   `)
 
   const insertBatch = db.prepare(`
-    INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, is_active)
-    VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, 1)
+    INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, supplier_id, is_active)
+    VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, @supplier_id, 1)
   `)
 
   const insertCustomer = db.prepare(`
@@ -334,15 +463,27 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
     VALUES (@name, @age_gender, @phone, @address, @current_balance)
   `)
 
+  const insertSupplier = db.prepare(`
+    INSERT INTO suppliers (name, phone, gstin, drug_lic_no, address, total_purchases, total_paid, current_balance)
+    VALUES (@name, @phone, @gstin, @drug_lic_no, @address, @total_purchases, @total_paid, @current_balance)
+  `)
+
+  const insertSupplierPurchase = db.prepare(`
+    INSERT INTO supplier_purchases (supplier_id, bill_no, bill_date, total_amount, paid_amount, due_amount, notes)
+    VALUES (@supplier_id, @bill_no, @bill_date, @total_amount, @paid_amount, @due_amount, @notes)
+  `)
+
   const insertInvoice = db.prepare(`
     INSERT INTO invoices (
-      invoice_no, invoice_date, patient_name, patient_meta, patient_address,
-      patient_phone, dr_name, dr_reg_no, payment_mode, payment_status,
-      mrp_total, discount_total, taxable_amount, cgst_total, sgst_total, round_off, grand_total, notes
+      invoice_no, invoice_date, invoice_type, customer_id, customer_dl_no, customer_gstin,
+      patient_name, patient_meta, patient_address, patient_phone, dr_name, dr_reg_no,
+      payment_mode, payment_status, mrp_total, discount_total, taxable_amount,
+      cgst_total, sgst_total, round_off, grand_total, notes
     ) VALUES (
-      @invoice_no, @invoice_date, @patient_name, @patient_meta, @patient_address,
-      @patient_phone, @dr_name, @dr_reg_no, @payment_mode, @payment_status,
-      @mrp_total, @discount_total, @taxable_amount, @cgst_total, @sgst_total, @round_off, @grand_total, @notes
+      @invoice_no, @invoice_date, @invoice_type, @customer_id, @customer_dl_no, @customer_gstin,
+      @patient_name, @patient_meta, @patient_address, @patient_phone, @dr_name, @dr_reg_no,
+      @payment_mode, @payment_status, @mrp_total, @discount_total, @taxable_amount,
+      @cgst_total, @sgst_total, @round_off, @grand_total, @notes
     )
   `)
 
@@ -357,7 +498,53 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
   `)
 
   const transaction = db.transaction(() => {
-    // 1. Seed Real Medicines from Client's Cash Memo
+    // 1. Seed Sample Suppliers (Distributors)
+    const s1 = insertSupplier.run({
+      name: 'M/S BENGAL PHARMA DISTRIBUTORS',
+      phone: '9832011223',
+      gstin: '19AAACB1234F1Z5',
+      drug_lic_no: 'DL-20B-1082 / DL-21B-1083',
+      address: 'STATION ROAD, RAIGANJ, UTTAR DINAJPUR',
+      total_purchases: 45000,
+      total_paid: 35000,
+      current_balance: 10000
+    })
+    const supplier1Id = Number(s1.lastInsertRowid)
+
+    const s2 = insertSupplier.run({
+      name: 'MEDPLUS WHOLESALE AGENCIES',
+      phone: '9434055667',
+      gstin: '19AABCM9876K1Z2',
+      drug_lic_no: 'DL-20B-5541 / DL-21B-5542',
+      address: 'MALDA TOWN COMMERCIAL COMPLEX',
+      total_purchases: 32000,
+      total_paid: 27000,
+      current_balance: 5000
+    })
+    const supplier2Id = Number(s2.lastInsertRowid)
+
+    // Seed Purchase Bills from Dokan
+    insertSupplierPurchase.run({
+      supplier_id: supplier1Id,
+      bill_no: 'BPD-INV-8891',
+      bill_date: '01-10-2026',
+      total_amount: 45000,
+      paid_amount: 35000,
+      due_amount: 10000,
+      notes: 'Monthly bulk medicine purchase'
+    })
+
+    insertSupplierPurchase.run({
+      supplier_id: supplier2Id,
+      bill_no: 'MP-PUR-4412',
+      bill_date: '10-10-2026',
+      total_amount: 32000,
+      paid_amount: 27000,
+      due_amount: 5000,
+      notes: 'Antibiotics and syrup stock'
+    })
+
+    // 2. Seed Real Medicines from Client's Cash Memo
     const sampleMedicines = [
       {
         name: 'AVERT 16 *',
@@ -372,7 +559,8 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
         mrp: 142.45,
         purchaseRate: 102.5,
         initialStrips: 50,
-        initialLoose: 0
+        initialLoose: 0,
+        supplierId: supplier1Id
       },
       {
         name: 'R.B.TONE XT *',
@@ -387,7 +575,8 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
         mrp: 223.0,
         purchaseRate: 160.0,
         initialStrips: 40,
-        initialLoose: 0
+        initialLoose: 0,
+        supplierId: supplier1Id
       },
       {
         name: 'ESOKEM-D *',
@@ -402,7 +591,8 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
         mrp: 200.39,
         purchaseRate: 145.0,
         initialStrips: 25,
-        initialLoose: 10
+        initialLoose: 10,
+        supplierId: supplier2Id
       },
       {
         name: 'D-RISE 60K CAP *',
@@ -417,7 +607,8 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
         mrp: 132.38,
         purchaseRate: 94.0,
         initialStrips: 60,
-        initialLoose: 2
+        initialLoose: 2,
+        supplierId: supplier1Id
       },
       {
         name: 'TRYPTOMER 10MG TAB *',
@@ -432,7 +623,8 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
         mrp: 76.88,
         purchaseRate: 52.0,
         initialStrips: 30,
-        initialLoose: 15
+        initialLoose: 15,
+        supplierId: supplier2Id
       }
     ]
 
@@ -462,26 +654,32 @@ export function seedInitialDataIfEmpty(db: Database.Database): boolean {
         exp_sort_key: parseExpSortKey(m.expDate),
         mrp: m.mrp,
         purchase_rate: m.purchaseRate,
-        stock_loose_units: totalLooseUnits
+        stock_loose_units: totalLooseUnits,
+        supplier_id: m.supplierId
       })
       const batchId = Number(bRes.lastInsertRowid)
 
       productBatchMap.push({ productId, batchId, item: m })
     }
 
-    // 2. Seed Patient from Client's Memo
-    insertCustomer.run({
+    // 3. Seed Patient from Client's Memo
+    const cRes = insertCustomer.run({
       name: 'SURAJMANI TUDU',
       age_gender: '30/F',
       phone: '9434220466',
       address: 'KARKHA',
       current_balance: 0
     })
+    const customerId = Number(cRes.lastInsertRowid)
 
-    // 3. Seed Cash Memo A060879 exactly matching the photo
+    // 4. Seed Cash Memo A060879 exactly matching the photo
     const invRes = insertInvoice.run({
       invoice_no: 'A060879',
       invoice_date: '21-10-2026',
+      invoice_type: 'RETAIL',
+      customer_id: customerId,
+      customer_dl_no: '',
+      customer_gstin: '',
       patient_name: 'SURAJMANI TUDU',
       patient_meta: '30/F',
       patient_address: 'KARKHA',

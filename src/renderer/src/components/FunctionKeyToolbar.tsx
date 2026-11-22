@@ -9,7 +9,9 @@ import {
   Database,
   Save,
   HelpCircle,
-  Calendar
+  Calendar,
+  Wallet,
+  RotateCcw
 } from 'lucide-react'
 import type { NavTab } from './Sidebar'
 
@@ -33,7 +35,6 @@ export const FunctionKeyToolbar: React.FC<FunctionKeyToolbarProps> = ({
   // Global Function Key Listener for true Windows ERP muscle memory
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      // Don't trigger if user is inside an input/textarea and pressing normal keys
       if (e.key === 'F1') {
         e.preventDefault()
         onOpenHelp()
@@ -57,10 +58,10 @@ export const FunctionKeyToolbar: React.FC<FunctionKeyToolbarProps> = ({
         onNavigate('customers')
       } else if (e.key === 'F8') {
         e.preventDefault()
-        onNavigate('settings')
+        onNavigate('balanceSheet')
       } else if (e.key === 'F9') {
         e.preventDefault()
-        onNavigate('database')
+        onNavigate('expiryReturns')
       } else if (e.key === 'F10') {
         e.preventDefault()
         onBackup()
@@ -97,7 +98,7 @@ export const FunctionKeyToolbar: React.FC<FunctionKeyToolbarProps> = ({
         <button
           className="toolbar-btn toolbar-btn-highlight"
           onClick={onNewInvoice}
-          title="F3: Issue New Marg GST Cash Memo"
+          title="F3: Issue New Retail / Wholesale Invoice"
         >
           <span className="fkey-badge fkey-badge-gold">F3</span>
           <FileText size={14} />
@@ -127,11 +128,11 @@ export const FunctionKeyToolbar: React.FC<FunctionKeyToolbarProps> = ({
         <button
           className={`toolbar-btn ${currentTab === 'invoices' ? 'active' : ''}`}
           onClick={() => onNavigate('invoices')}
-          title="F6: Cash Memo & Prescription Register"
+          title="F6: Retail & Wholesale Billing Register"
         >
           <span className="fkey-badge">F6</span>
           <Receipt size={14} />
-          <span>Bills Register</span>
+          <span>Bills</span>
         </button>
 
         <button
@@ -143,6 +144,26 @@ export const FunctionKeyToolbar: React.FC<FunctionKeyToolbarProps> = ({
           <Users size={14} />
           <span>Patients</span>
         </button>
+
+        <button
+          className={`toolbar-btn ${currentTab === 'balanceSheet' ? 'active' : ''}`}
+          onClick={() => onNavigate('balanceSheet')}
+          title="F8: Balance Sheet & Ledgers (দোকান ও কাস্টমার বাকি)"
+        >
+          <span className="fkey-badge">F8</span>
+          <Wallet size={14} color="#f59e0b" />
+          <span>Balance Sheet</span>
+        </button>
+
+        <button
+          className={`toolbar-btn ${currentTab === 'expiryReturns' ? 'active' : ''}`}
+          onClick={() => onNavigate('expiryReturns')}
+          title="F9: Expiry Medicine Return to Supplier"
+        >
+          <span className="fkey-badge">F9</span>
+          <RotateCcw size={14} color="#ef4444" />
+          <span>Expiry Return</span>
+        </button>
       </div>
 
       <div className="toolbar-separator" />
@@ -151,27 +172,25 @@ export const FunctionKeyToolbar: React.FC<FunctionKeyToolbarProps> = ({
         <button
           className={`toolbar-btn ${currentTab === 'settings' ? 'active' : ''}`}
           onClick={() => onNavigate('settings')}
-          title="F8: Store Drug Licenses & Compliance"
+          title="Store Drug Licenses & Profile"
         >
-          <span className="fkey-badge">F8</span>
           <Settings size={14} />
-          <span>Store Lic</span>
+          <span>Licenses</span>
         </button>
 
         <button
           className={`toolbar-btn ${currentTab === 'database' ? 'active' : ''}`}
           onClick={() => onNavigate('database')}
-          title="F9: Local Data Health & Statistics"
+          title="Local Data Health & Statistics"
         >
-          <span className="fkey-badge">F9</span>
           <Database size={14} />
-          <span>Data Stats</span>
+          <span>Data</span>
         </button>
 
         <button
           className="toolbar-btn"
           onClick={onBackup}
-          title="F10: Instant Local Pendrive Backup"
+          title="F10: Instant Local Database Backup"
         >
           <span className="fkey-badge">F10</span>
           <Save size={14} />

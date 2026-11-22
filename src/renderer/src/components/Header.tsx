@@ -26,15 +26,25 @@ const tabMeta: Record<NavTab, { section: string; title: string; hint: string }> 
     title: 'Patient Accounts Ledger & Outstanding Dues',
     hint: 'F7'
   },
+  balanceSheet: {
+    section: 'FINANCIAL LEDGER',
+    title: 'Balance Sheet, Dokan & Customer Dues (দোকান ও কাস্টমার বাকি)',
+    hint: 'F8'
+  },
+  expiryReturns: {
+    section: 'RETURNS & DEBIT NOTES',
+    title: 'Expiry Medicine Returns to Supplier (মেয়াদোত্তীর্ণ ওষুধ ফেরত)',
+    hint: 'F9'
+  },
   settings: {
     section: 'MASTERS',
     title: 'Store Configuration, Form 20/21 & Compliance',
-    hint: 'F8'
+    hint: 'Alt+7'
   },
   database: {
     section: 'TOOLS',
     title: 'Database Engine & Data Storage',
-    hint: 'F9'
+    hint: 'Alt+8'
   }
 }
 

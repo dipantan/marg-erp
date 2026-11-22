@@ -71,6 +71,7 @@ export function renderInvoiceHtml(
   qrCodeDataUrl: string
 ): string {
   const words = numberToWordsINR(invoice.grandTotal)
+  const isWholesale = invoice.invoiceType === 'WHOLESALE'
 
   const rowsHtml = invoice.items
     .map(
@@ -82,7 +83,9 @@ export function renderInvoiceHtml(
         <td style="text-align: center;">${item.hsnCode}</td>
         <td style="text-align: center;">${item.expiryDate}</td>
         <td style="text-align: center; font-family: monospace;">${item.batchNo}</td>
-        <td style="text-align: center; font-weight: bold;">${item.qtyPack}:${item.qtyLoose}</td>
+        <td style="text-align: center; font-weight: bold;">${
+          isWholesale ? `${item.qtyPack}` : `${item.qtyPack}:${item.qtyLoose}`
+        }</td>
         <td style="text-align: right;">${item.mrp.toFixed(2)}</td>
         <td style="text-align: right;">${item.discountPercent.toFixed(2)}</td>
         <td style="text-align: right;">${item.gstPercent.toFixed(2)}</td>
@@ -96,11 +99,19 @@ export function renderInvoiceHtml(
   const itemRowCount = invoice.items.length
   const fillerHeight = Math.max(20, 140 - itemRowCount * 22)
 
+  const headerTitle = isWholesale
+    ? 'WHOLESALE TAX INVOICE (FORM 20B & 21B)'
+    : 'CASH MEMO / PRESCRIPTION REGISTER'
+
+  const activeDrugLic = isWholesale
+    ? store.wholesaleDrugLicNo || 'WD-6172-W/WD-6173-WB / WB/DDP/NBOR/W/892100'
+    : store.drugLicNo
+
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Invoice ${invoice.invoiceNumber}</title>
+  <title>${isWholesale ? 'Wholesale Invoice' : 'Cash Memo'} ${invoice.invoiceNumber}</title>
   <style>
     @page {
       size: A5 landscape;
@@ -126,9 +137,10 @@ export function renderInvoiceHtml(
       text-align: center;
       font-weight: bold;
       font-size: 12px;
-      padding: 2px;
+      padding: 3px;
       border-bottom: 1.5px solid #000;
       letter-spacing: 0.5px;
+      background: ${isWholesale ? '#f0fdf4' : '#fff'};
     }
     .top-table {
       width: 100%;
@@ -223,7 +235,7 @@ export function renderInvoiceHtml(
 </head>
 <body>
   <div class="invoice-box">
-    <div class="header-title">CASH MEMO/PRESCRIPTION REGISTER</div>
+    <div class="header-title">${headerTitle}</div>
 
     <table class="top-table">
       <tr>
@@ -234,7 +246,7 @@ export function renderInvoiceHtml(
           <div>TOWN- ${store.city}, DIST -${store.district}</div>
           <div>MOB-${store.phone}</div>
           <div style="margin-top: 3px;">GSTIN : ${store.gstin}</div>
-          <div>Drug Lic no - ${store.drugLicNo}</div>
+          <div>${isWholesale ? 'Wholesale Drug Lic (Form 20B/21B)' : 'Retail Drug Lic (Form 20/21)'} - ${activeDrugLic}</div>
           <div>FSSAI-${store.fssaiNo}</div>
         </td>
 
@@ -244,17 +256,29 @@ export function renderInvoiceHtml(
         </td>
 
         <td style="width: 40%;">
-          <div><strong>Patient Name :</strong> ${invoice.patientName} ${invoice.patientAgeGender || ''}</div>
-          <div><strong>Patient Address :</strong> ${invoice.patientAddress || '-'}</div>
-          <div><strong>Phone no :</strong> ${invoice.patientPhone || '-'}</div>
-          <div><strong>Dr Name :</strong> ${invoice.doctorName || '-'}</div>
-          <div><strong>Dr Reg No. :</strong> ${invoice.doctorRegNo || '-'}</div>
+          ${
+            isWholesale
+              ? `
+            <div><strong>Buyer Shop / Party :</strong> ${invoice.patientName}</div>
+            <div><strong>Buyer Drug Lic No :</strong> ${invoice.customerDlNo || '-'}</div>
+            <div><strong>Buyer GSTIN :</strong> ${invoice.customerGstin || '-'}</div>
+            <div><strong>Address :</strong> ${invoice.patientAddress || '-'}</div>
+            <div><strong>Contact Phone :</strong> ${invoice.patientPhone || '-'}</div>
+          `
+              : `
+            <div><strong>Patient Name :</strong> ${invoice.patientName} ${invoice.patientAgeGender || ''}</div>
+            <div><strong>Patient Address :</strong> ${invoice.patientAddress || '-'}</div>
+            <div><strong>Phone no :</strong> ${invoice.patientPhone || '-'}</div>
+            <div><strong>Dr Name :</strong> ${invoice.doctorName || '-'}</div>
+            <div><strong>Dr Reg No. :</strong> ${invoice.doctorRegNo || '-'}</div>
+          `
+          }
         </td>
       </tr>
     </table>
 
     <div class="sub-bar">
-      <div class="sub-bar-title">GST INVOICE</div>
+      <div class="sub-bar-title">${isWholesale ? 'TAX INVOICE' : 'GST INVOICE'}</div>
       <div class="sub-bar-meta">
         <div style="flex: 1;"><strong>Invoice No. :</strong> &nbsp; ${invoice.invoiceNumber}</div>
         <div><strong>Date:</strong> ${invoice.invoiceDate}</div>
@@ -279,7 +303,6 @@ export function renderInvoiceHtml(
       </thead>
       <tbody>
         ${rowsHtml}
-        <!-- Empty filler rows for vertical height -->
         <tr style="height: ${fillerHeight}px;">
           <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
         </tr>
@@ -287,62 +310,44 @@ export function renderInvoiceHtml(
     </table>
 
     <div class="delivery-strip">
-      FOR FREE HOME DELIVERY NUMBER CALL - ${store.alternatePhone || '9732101206'}
+      HOME DELIVERY PH NO - ${store.alternatePhone || '9732101206'}
     </div>
 
     <table class="footer-table">
       <tr>
-        <td style="width: 65%; padding: 5px; border-right: 1.5px solid #000;">
-          <div style="font-weight: bold; text-decoration: underline;">Terms & Conditions</div>
-          <div style="font-size: 9.5px; line-height: 1.35; margin-top: 2px;">
-            (1) Medicines are sold exchanged by looking at the expiry date including the bill within 15 days<br>
-            (2) All disputes subject to ${store.district || 'BUNIADPUR'} jurisdiction only.<br>
-            (3) cold storage/Refrigerated/Surgical Rehabilitation product cannot be returned.<br>
-            (4) PLEASE CONSULT DR. BEFORE USING THE MEDICINES<br>
-            E. & O.E. (ERRORS AND OMMITIONS SHALL BE REEMBERSED)
-          </div>
-
-          <div style="margin-top: 6px; font-size: 11px;">
-            <strong>YOU SAVE : &nbsp;&nbsp; ${invoice.discountTotal.toFixed(2)}</strong><br>
-            <span>${words}</span>
-          </div>
-
-          <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: flex-end;">
-            <div></div>
-            <div style="text-align: center; font-size: 10px;">
-              <div>For ${store.storeName}</div>
-              <div style="margin-top: 20px;">Authorised Signatory</div>
-            </div>
+        <td style="width: 58%; padding: 4px; border-right: 1.5px solid #000; font-size: 10px;">
+          <div style="font-weight: bold; margin-bottom: 2px;">Terms & Conditions:</div>
+          <div style="white-space: pre-line; line-height: 1.25; color: #333;">${store.termsAndConditions}</div>
+          <div style="margin-top: 6px; font-weight: bold;">
+            Amount in words: ${words}
           </div>
         </td>
 
-        <td style="width: 35%;">
+        <td style="width: 42%; vertical-align: top;">
           <table class="totals-table">
             <tr>
-              <td><strong>MRP TOTAL</strong></td>
-              <td style="text-align: right; font-weight: bold;">${invoice.mrpTotal.toFixed(2)}</td>
+              <td>TOTAL MRP</td>
+              <td style="text-align: right; font-weight: 600;">₹${invoice.mrpTotal.toFixed(2)}</td>
             </tr>
             <tr>
-              <td>LESS</td>
-              <td style="text-align: right;">${invoice.discountTotal.toFixed(2)}</td>
+              <td>DISCOUNT TOTAL</td>
+              <td style="text-align: right; font-weight: 600;">-₹${invoice.discountTotal.toFixed(2)}</td>
             </tr>
             <tr>
-              <td>SGST</td>
-              <td style="text-align: right;">${invoice.sgst.toFixed(2)}</td>
+              <td>TAXABLE VALUE</td>
+              <td style="text-align: right;">₹${invoice.taxableAmount.toFixed(2)}</td>
             </tr>
             <tr>
-              <td>CGST</td>
-              <td style="text-align: right;">${invoice.cgst.toFixed(2)}</td>
+              <td>CGST (2.5%) + SGST (2.5%)</td>
+              <td style="text-align: right;">₹${invoice.cgst.toFixed(2)} + ₹${invoice.sgst.toFixed(2)}</td>
             </tr>
             <tr>
               <td>ROUND OFF</td>
-              <td style="text-align: right;">${invoice.roundOff.toFixed(2)}</td>
+              <td style="text-align: right;">₹${invoice.roundOff.toFixed(2)}</td>
             </tr>
             <tr class="grand-total-row">
-              <td style="padding-top: 6px; padding-bottom: 6px;">GRAND TOTAL</td>
-              <td style="text-align: right; font-size: 14px; padding-top: 6px; padding-bottom: 6px;">
-                ₹${invoice.grandTotal.toFixed(2)}
-              </td>
+              <td>NET PAYABLE (${invoice.paymentMode})</td>
+              <td style="text-align: right;">₹${invoice.grandTotal.toFixed(2)}</td>
             </tr>
           </table>
         </td>

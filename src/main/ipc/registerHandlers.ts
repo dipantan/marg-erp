@@ -8,8 +8,14 @@ import type {
   PurchaseImportItem,
   CreateCustomerInput,
   UpdateCustomerInput,
+  RecordCustomerPaymentInput,
   CreateInvoiceInput,
-  HeldBill
+  HeldBill,
+  CreateSupplierInput,
+  UpdateSupplierInput,
+  CreateSupplierPurchaseInput,
+  RecordSupplierPaymentInput,
+  CreateExpiryReturnInput
 } from '@shared/types'
 import {
   getDatabase,
@@ -26,6 +32,8 @@ import {
 import { itemRepository } from '../db/repositories/itemRepository'
 import { customerRepository } from '../db/repositories/customerRepository'
 import { invoiceRepository } from '../db/repositories/invoiceRepository'
+import { supplierRepository } from '../db/repositories/supplierRepository'
+import { expiryReturnRepository } from '../db/repositories/expiryReturnRepository'
 import { printInvoiceSilent } from '../printing/printService'
 
 function wrapHandler<TArgs extends unknown[], TResult>(
@@ -68,7 +76,7 @@ export function registerIpcHandlers(): void {
     })
   )
 
-  // Store Settings (Form 20/21 & Profile)
+  // Store Settings (Form 20/21 & Form 20B/21B Profile)
   ipcMain.handle(
     IPC_CHANNELS.STORE.GET_SETTINGS,
     wrapHandler(async () => {
@@ -199,7 +207,7 @@ export function registerIpcHandlers(): void {
     })
   )
 
-  // Customers (Patients)
+  // Customers (Patients & Debtors Ledger)
   ipcMain.handle(
     IPC_CHANNELS.CUSTOMERS.LIST,
     wrapHandler(async (query?: string) => {
@@ -235,7 +243,21 @@ export function registerIpcHandlers(): void {
     })
   )
 
-  // Invoices (Cash Memo / Prescription Register)
+  ipcMain.handle(
+    IPC_CHANNELS.CUSTOMERS.GET_HISTORY,
+    wrapHandler(async (customerId: number) => {
+      return customerRepository.getHistory(customerId)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.CUSTOMERS.RECORD_PAYMENT,
+    wrapHandler(async (input: RecordCustomerPaymentInput) => {
+      return customerRepository.recordPayment(input)
+    })
+  )
+
+  // Invoices (Retail Cash Memo & Wholesale Tax Invoice)
   ipcMain.handle(
     IPC_CHANNELS.INVOICES.LIST,
     wrapHandler(async () => {
@@ -285,6 +307,100 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.INVOICES.REMOVE_HELD_BILL,
     wrapHandler(async (id: string) => {
       return removeHeldBill(id)
+    })
+  )
+
+  // Suppliers / Dokans Ledger
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.LIST,
+    wrapHandler(async (query?: string) => {
+      return supplierRepository.list(query)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.GET_BY_ID,
+    wrapHandler(async (id: number) => {
+      return supplierRepository.getById(id)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.CREATE,
+    wrapHandler(async (input: CreateSupplierInput) => {
+      return supplierRepository.create(input)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.UPDATE,
+    wrapHandler(async (input: UpdateSupplierInput) => {
+      return supplierRepository.update(input)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.DELETE,
+    wrapHandler(async (id: number) => {
+      return supplierRepository.delete(id)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.LIST_PURCHASES,
+    wrapHandler(async (supplierId?: number) => {
+      return supplierRepository.listPurchases(supplierId)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.CREATE_PURCHASE,
+    wrapHandler(async (input: CreateSupplierPurchaseInput) => {
+      return supplierRepository.createPurchase(input)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.LIST_PAYMENTS,
+    wrapHandler(async (supplierId?: number) => {
+      return supplierRepository.listPayments(supplierId)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.SUPPLIERS.RECORD_PAYMENT,
+    wrapHandler(async (input: RecordSupplierPaymentInput) => {
+      return supplierRepository.recordPayment(input)
+    })
+  )
+
+  // Expiry Returns to Supplier
+  ipcMain.handle(
+    IPC_CHANNELS.EXPIRY_RETURNS.LIST,
+    wrapHandler(async () => {
+      return expiryReturnRepository.list()
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.EXPIRY_RETURNS.GET_ELIGIBLE_BATCHES,
+    wrapHandler(async () => {
+      return expiryReturnRepository.getEligibleBatches()
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.EXPIRY_RETURNS.CREATE,
+    wrapHandler(async (input: CreateExpiryReturnInput) => {
+      return expiryReturnRepository.create(input)
+    })
+  )
+
+  // Balance Sheet / Ledgers Summary
+  ipcMain.handle(
+    IPC_CHANNELS.BALANCE_SHEET.GET_SUMMARY,
+    wrapHandler(async () => {
+      return supplierRepository.getBalanceSheetSummary()
     })
   )
 }

@@ -25,7 +25,8 @@ export interface StoreSettings {
   phone: string
   alternatePhone?: string
   gstin: string
-  drugLicNo: string
+  drugLicNo: string // Retail Drug License (Form 20 & 21)
+  wholesaleDrugLicNo?: string // Wholesale Drug License (Form 20B & 21B)
   fssaiNo: string
   registeredPharmacist: string
   pharmacistRegNo: string
@@ -60,6 +61,8 @@ export interface ProductBatch {
   stockLooseUnits: number // Baseline stock in lowest loose units
   stockStrips: number // Computed: Math.floor(stockLooseUnits / unitsPerPack)
   stockLoose: number // Computed: stockLooseUnits % unitsPerPack
+  supplierId?: number
+  supplierName?: string
   isActive: boolean
 }
 
@@ -84,6 +87,7 @@ export interface CreateProductInput {
     purchaseRate?: number
     stockStrips: number
     stockLoose: number
+    supplierId?: number
   }
 }
 
@@ -95,6 +99,7 @@ export interface CreateBatchInput {
   purchaseRate?: number
   stockStrips: number
   stockLoose: number
+  supplierId?: number
 }
 
 export interface Customer {
@@ -125,6 +130,44 @@ export interface UpdateCustomerInput {
   currentBalance?: number
 }
 
+export interface CustomerPayment {
+  id: number
+  customerId: number
+  customerName?: string
+  paymentDate: string
+  amount: number
+  paymentMode: 'CASH' | 'UPI' | 'BANK'
+  notes?: string
+  createdAt: string
+}
+
+export interface RecordCustomerPaymentInput {
+  customerId: number
+  paymentDate: string
+  amount: number
+  paymentMode: 'CASH' | 'UPI' | 'BANK'
+  notes?: string
+}
+
+export interface CustomerMedicineHistoryItem {
+  id: number
+  invoiceId: number
+  invoiceNo: string
+  invoiceDate: string
+  invoiceType: 'RETAIL' | 'WHOLESALE'
+  grandTotal: number
+  paymentMode: string
+  paymentStatus: string
+  productName: string
+  pack: string
+  batchNo: string
+  expiryDate: string
+  qtyPack: number
+  qtyLoose: number
+  mrp: number
+  amount: number
+}
+
 export interface InvoiceLineItem {
   id?: number
   invoiceId?: number
@@ -135,8 +178,8 @@ export interface InvoiceLineItem {
   hsnCode: string
   batchNo: string
   expiryDate: string
-  qtyPack: number // Strips
-  qtyLoose: number // Loose capsules/tablets
+  qtyPack: number // Strips/Packs
+  qtyLoose: number // Loose capsules/tablets (RETAIL ONLY)
   unitsPerPack?: number
   mrp: number
   discountPercent: number
@@ -148,7 +191,11 @@ export interface Invoice {
   id: number
   invoiceNumber: string
   invoiceDate: string
-  patientName: string
+  invoiceType: 'RETAIL' | 'WHOLESALE'
+  customerId?: number
+  customerDlNo?: string
+  customerGstin?: string
+  patientName: string // In wholesale: Buyer Shop / Party Name
   patientAgeGender: string
   patientAddress: string
   patientPhone: string
@@ -170,6 +217,10 @@ export interface Invoice {
 
 export interface CreateInvoiceInput {
   invoiceDate: string
+  invoiceType?: 'RETAIL' | 'WHOLESALE'
+  customerId?: number
+  customerDlNo?: string
+  customerGstin?: string
   patientName: string
   patientAgeGender?: string
   patientAddress?: string
@@ -215,6 +266,122 @@ export interface PurchaseImportItem {
   mrp: number
   purchaseRate: number
   qtyStrips: number
+  supplierId?: number
+}
+
+// Supplier & Purchase Management
+export interface Supplier {
+  id: number
+  name: string
+  phone: string
+  gstin?: string
+  drugLicNo?: string
+  address?: string
+  totalPurchases: number
+  totalPaid: number
+  currentBalance: number // Outstanding due to supplier
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateSupplierInput {
+  name: string
+  phone?: string
+  gstin?: string
+  drugLicNo?: string
+  address?: string
+  openingBalance?: number
+}
+
+export interface UpdateSupplierInput {
+  id: number
+  name?: string
+  phone?: string
+  gstin?: string
+  drugLicNo?: string
+  address?: string
+}
+
+export interface SupplierPurchase {
+  id: number
+  supplierId: number
+  supplierName?: string
+  billNo: string
+  billDate: string
+  totalAmount: number
+  paidAmount: number
+  dueAmount: number
+  notes?: string
+  createdAt: string
+}
+
+export interface CreateSupplierPurchaseInput {
+  supplierId: number
+  billNo: string
+  billDate: string
+  totalAmount: number
+  paidAmount?: number
+  notes?: string
+}
+
+export interface SupplierPayment {
+  id: number
+  supplierId: number
+  supplierName?: string
+  purchaseId?: number
+  paymentDate: string
+  amount: number
+  paymentMode: 'CASH' | 'BANK' | 'UPI' | 'CHEQUE' | 'RETURN_ADJUSTMENT'
+  notes?: string
+  createdAt: string
+}
+
+export interface RecordSupplierPaymentInput {
+  supplierId: number
+  purchaseId?: number
+  paymentDate: string
+  amount: number
+  paymentMode: 'CASH' | 'BANK' | 'UPI' | 'CHEQUE' | 'RETURN_ADJUSTMENT'
+  notes?: string
+}
+
+// Expiry Returns to Supplier (Debit Note)
+export interface ExpiryReturn {
+  id: number
+  returnNo: string
+  returnDate: string
+  supplierId: number
+  supplierName?: string
+  supplierPhone?: string
+  productId: number
+  productName: string
+  batchId: number
+  batchNo: string
+  expDate: string
+  packLabel: string
+  qtyStrips: number
+  purchaseRate: number
+  totalAmount: number
+  status: 'RETURNED' | 'CREDIT_NOTE_RECEIVED'
+  notes?: string
+  createdAt: string
+}
+
+export interface CreateExpiryReturnInput {
+  supplierId: number
+  batchId: number
+  qtyStrips: number
+  notes?: string
+}
+
+export interface BalanceSheetSummary {
+  totalReceivables: number // Customer Due
+  totalPayables: number // Supplier Due
+  totalSalesRevenue: number
+  totalPurchaseExpense: number
+  totalExpiryReturnedAmount: number
+  suppliersCount: number
+  customersWithDueCount: number
 }
 
 export interface DatabaseStats {
@@ -228,6 +395,9 @@ export interface DatabaseStats {
   totalRevenue: number
   expiringSoonCount: number
   lowStockCount: number
+  totalSuppliers?: number
+  totalSupplierDue?: number
+  totalCustomerDue?: number
   lastUpdated: string
 }
 
@@ -240,4 +410,3 @@ export interface UpdateStatus {
   bytesPerSecond?: number
   error?: string
 }
-

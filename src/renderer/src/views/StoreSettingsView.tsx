@@ -150,7 +150,7 @@ export const StoreSettingsView: React.FC<StoreSettingsViewProps> = ({ store, onU
 
             <div className="form-grid-2">
               <div className="input-group">
-                <label className="input-label">Drug Licence No (Form 20 & 21)</label>
+                <label className="input-label">Retail Drug Licence No (Form 20 & 21)</label>
                 <input
                   className="input-text font-mono"
                   value={formData.drugLicNo || ''}
@@ -158,6 +158,18 @@ export const StoreSettingsView: React.FC<StoreSettingsViewProps> = ({ store, onU
                 />
               </div>
 
+              <div className="input-group">
+                <label className="input-label">Wholesale Drug Licence No (Form 20B & 21B)</label>
+                <input
+                  className="input-text font-mono"
+                  placeholder="e.g. WD-6172-W / WD-6173-WB / WB/DDP/NBOR/W/892100"
+                  value={formData.wholesaleDrugLicNo || ''}
+                  onChange={(e) => setFormData({ ...formData, wholesaleDrugLicNo: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="form-grid-2">
               <div className="input-group">
                 <label className="input-label">GSTIN Identification No.</label>
                 <input

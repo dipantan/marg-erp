@@ -28,6 +28,8 @@ interface BatchRow {
   mrp: number
   purchase_rate: number
   stock_loose_units: number
+  supplier_id?: number | null
+  supplier_name?: string | null
   is_active: number
 }
 
@@ -51,6 +53,8 @@ function mapBatch(
     stockLooseUnits: b.stock_loose_units,
     stockStrips: Math.floor(b.stock_loose_units / unitsPerPack),
     stockLoose: b.stock_loose_units % unitsPerPack,
+    supplierId: b.supplier_id ?? undefined,
+    supplierName: b.supplier_name ?? undefined,
     isActive: b.is_active === 1
   }
 }
@@ -98,9 +102,11 @@ export const itemRepository = {
     }
 
     const batchStmt = db.prepare(`
-      SELECT * FROM product_batches
-      WHERE product_id = ? AND is_active = 1
-      ORDER BY exp_sort_key ASC
+      SELECT pb.*, s.name as supplier_name
+      FROM product_batches pb
+      LEFT JOIN suppliers s ON pb.supplier_id = s.id
+      WHERE pb.product_id = ? AND pb.is_active = 1
+      ORDER BY pb.exp_sort_key ASC
     `)
 
     return products.map((p) => {
@@ -125,9 +131,11 @@ export const itemRepository = {
       const products = stmt.all(cleanQuery) as ProductRow[]
 
       const batchStmt = db.prepare(`
-        SELECT * FROM product_batches
-        WHERE product_id = ? AND is_active = 1
-        ORDER BY exp_sort_key ASC
+        SELECT pb.*, s.name as supplier_name
+        FROM product_batches pb
+        LEFT JOIN suppliers s ON pb.supplier_id = s.id
+        WHERE pb.product_id = ? AND pb.is_active = 1
+        ORDER BY pb.exp_sort_key ASC
       `)
 
       return products.map((p) => {
@@ -148,9 +156,11 @@ export const itemRepository = {
     const bRows = db
       .prepare(
         `
-      SELECT * FROM product_batches
-      WHERE product_id = ? AND is_active = 1
-      ORDER BY exp_sort_key ASC
+      SELECT pb.*, s.name as supplier_name
+      FROM product_batches pb
+      LEFT JOIN suppliers s ON pb.supplier_id = s.id
+      WHERE pb.product_id = ? AND pb.is_active = 1
+      ORDER BY pb.exp_sort_key ASC
     `
       )
       .all(id) as BatchRow[]
@@ -167,9 +177,11 @@ export const itemRepository = {
     const bRows = db
       .prepare(
         `
-      SELECT * FROM product_batches
-      WHERE product_id = ? AND is_active = 1
-      ORDER BY exp_sort_key ASC
+      SELECT pb.*, s.name as supplier_name
+      FROM product_batches pb
+      LEFT JOIN suppliers s ON pb.supplier_id = s.id
+      WHERE pb.product_id = ? AND pb.is_active = 1
+      ORDER BY pb.exp_sort_key ASC
     `
       )
       .all(productId) as BatchRow[]
@@ -183,9 +195,10 @@ export const itemRepository = {
     const alertYearMonth = currentYearMonth + 100 // 1 year ahead
 
     const stmt = db.prepare(`
-      SELECT pb.*, p.name as product_name, p.pack_label, p.units_per_pack
+      SELECT pb.*, p.name as product_name, p.pack_label, p.units_per_pack, s.name as supplier_name
       FROM product_batches pb
       JOIN products p ON pb.product_id = p.id
+      LEFT JOIN suppliers s ON pb.supplier_id = s.id
       WHERE pb.is_active = 1 AND pb.exp_sort_key <= ?
       ORDER BY pb.exp_sort_key ASC
     `)
@@ -229,8 +242,8 @@ export const itemRepository = {
 
         db.prepare(
           `
-          INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, is_active)
-          VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, 1)
+          INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, supplier_id, is_active)
+          VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, @supplier_id, 1)
         `
         ).run({
           product_id: createdProductId,
@@ -239,7 +252,8 @@ export const itemRepository = {
           exp_sort_key: parseExpSortKey(input.initialBatch.expDate),
           mrp: Number(input.initialBatch.mrp) || 0,
           purchase_rate: Number(input.initialBatch.purchaseRate) || 0,
-          stock_loose_units: totalLoose
+          stock_loose_units: totalLoose,
+          supplier_id: input.initialBatch.supplierId ?? null
         })
       }
     })
@@ -258,8 +272,8 @@ export const itemRepository = {
     const bRes = db
       .prepare(
         `
-      INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, is_active)
-      VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, 1)
+      INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, supplier_id, is_active)
+      VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, @supplier_id, 1)
     `
       )
       .run({
@@ -269,11 +283,17 @@ export const itemRepository = {
         exp_sort_key: parseExpSortKey(input.expDate),
         mrp: Number(input.mrp) || 0,
         purchase_rate: Number(input.purchaseRate) || 0,
-        stock_loose_units: totalLoose
+        stock_loose_units: totalLoose,
+        supplier_id: input.supplierId ?? null
       })
 
     const bRow = db
-      .prepare('SELECT * FROM product_batches WHERE id = ?')
+      .prepare(`
+        SELECT pb.*, s.name as supplier_name
+        FROM product_batches pb
+        LEFT JOIN suppliers s ON pb.supplier_id = s.id
+        WHERE pb.id = ?
+      `)
       .get(bRes.lastInsertRowid) as BatchRow
     return mapBatch(bRow, p.units_per_pack, p.name, p.pack_label)
   },
@@ -296,14 +316,15 @@ export const itemRepository = {
         VALUES (@name, @hsn_code, @pack_label, @units_per_pack, 5.0, 10)
       `)
       const insertBatch = db.prepare(`
-        INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, is_active)
-        VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, 1)
+        INSERT INTO product_batches (product_id, batch_no, exp_date, exp_sort_key, mrp, purchase_rate, stock_loose_units, supplier_id, is_active)
+        VALUES (@product_id, @batch_no, @exp_date, @exp_sort_key, @mrp, @purchase_rate, @stock_loose_units, @supplier_id, 1)
       `)
       const updateBatchStock = db.prepare(`
         UPDATE product_batches
         SET stock_loose_units = stock_loose_units + ?,
             mrp = ?,
-            purchase_rate = ?
+            purchase_rate = ?,
+            supplier_id = COALESCE(?, supplier_id)
         WHERE id = ?
       `)
       const findBatch = db.prepare(`
@@ -331,7 +352,13 @@ export const itemRepository = {
         const existingBatch = findBatch.get(p.id, item.batchNo.trim().toUpperCase()) as
           BatchRow | undefined
         if (existingBatch) {
-          updateBatchStock.run(looseToAdd, item.mrp, item.purchaseRate, existingBatch.id)
+          updateBatchStock.run(
+            looseToAdd,
+            item.mrp,
+            item.purchaseRate,
+            item.supplierId ?? null,
+            existingBatch.id
+          )
         } else {
           insertBatch.run({
             product_id: p.id,
@@ -340,7 +367,8 @@ export const itemRepository = {
             exp_sort_key: parseExpSortKey(item.expDate),
             mrp: item.mrp,
             purchase_rate: item.purchaseRate,
-            stock_loose_units: looseToAdd
+            stock_loose_units: looseToAdd,
+            supplier_id: item.supplierId ?? null
           })
         }
         count++

@@ -1,7 +1,24 @@
 import React from 'react'
-import { LayoutDashboard, Boxes, Receipt, Users, Database, Building2 } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Boxes,
+  Receipt,
+  Users,
+  Database,
+  Building2,
+  Wallet,
+  RotateCcw
+} from 'lucide-react'
 
-export type NavTab = 'dashboard' | 'items' | 'invoices' | 'customers' | 'database' | 'settings'
+export type NavTab =
+  | 'dashboard'
+  | 'invoices'
+  | 'items'
+  | 'customers'
+  | 'balanceSheet'
+  | 'expiryReturns'
+  | 'database'
+  | 'settings'
 
 interface SidebarProps {
   currentTab: NavTab
@@ -29,10 +46,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         <button
           className={`desktop-nav-item ${currentTab === 'invoices' ? 'active' : ''}`}
           onClick={() => onSelectTab('invoices')}
-          title="Alt+2 / F6: Cash Memos & Billing"
+          title="Alt+2 / F6: Retail & Wholesale Invoicing"
         >
           <Receipt size={14} />
-          <span className="nav-item-title">Cash Memos</span>
+          <span className="nav-item-title">Invoices (Retail/Wholesale)</span>
           <span className="nav-shortcut-tag">Alt+2</span>
         </button>
 
@@ -55,6 +72,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
           <span className="nav-item-title">Patient Ledger</span>
           <span className="nav-shortcut-tag">Alt+4</span>
         </button>
+
+        <button
+          className={`desktop-nav-item ${currentTab === 'balanceSheet' ? 'active' : ''}`}
+          onClick={() => onSelectTab('balanceSheet')}
+          title="Alt+5: Balance Sheet, Dokan & Customer Dues"
+        >
+          <Wallet size={14} color="#f59e0b" />
+          <span className="nav-item-title" style={{ fontWeight: 600 }}>Balance Sheet (হিসাব/বাকি)</span>
+          <span className="nav-shortcut-tag">Alt+5</span>
+        </button>
+
+        <button
+          className={`desktop-nav-item ${currentTab === 'expiryReturns' ? 'active' : ''}`}
+          onClick={() => onSelectTab('expiryReturns')}
+          title="Alt+6: Expiry Medicine Return to Supplier"
+        >
+          <RotateCcw size={14} color="#ef4444" />
+          <span className="nav-item-title" style={{ fontWeight: 600 }}>Expiry Returns (ফেরত)</span>
+          <span className="nav-shortcut-tag">Alt+6</span>
+        </button>
       </div>
 
       <div className="nav-tree-section">
@@ -63,21 +100,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         <button
           className={`desktop-nav-item ${currentTab === 'settings' ? 'active' : ''}`}
           onClick={() => onSelectTab('settings')}
-          title="Alt+5 / F8: Store Licenses & Form 20/21"
+          title="Alt+7 / F8: Store Licenses & Form 20/21, 20B/21B"
         >
           <Building2 size={14} />
           <span className="nav-item-title">Store Licences</span>
-          <span className="nav-shortcut-tag">Alt+5</span>
+          <span className="nav-shortcut-tag">Alt+7</span>
         </button>
 
         <button
           className={`desktop-nav-item ${currentTab === 'database' ? 'active' : ''}`}
           onClick={() => onSelectTab('database')}
-          title="Alt+6 / F9: Data Storage & Statistics"
+          title="Alt+8 / F9: Data Storage & Statistics"
         >
           <Database size={14} />
           <span className="nav-item-title">Data Storage</span>
-          <span className="nav-shortcut-tag">Alt+6</span>
+          <span className="nav-shortcut-tag">Alt+8</span>
         </button>
       </div>
     </aside>

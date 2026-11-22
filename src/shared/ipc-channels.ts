@@ -10,10 +10,23 @@ import type {
   Customer,
   CreateCustomerInput,
   UpdateCustomerInput,
+  CustomerPayment,
+  RecordCustomerPaymentInput,
+  CustomerMedicineHistoryItem,
   Invoice,
   CreateInvoiceInput,
   HeldBill,
   PurchaseImportItem,
+  Supplier,
+  CreateSupplierInput,
+  UpdateSupplierInput,
+  SupplierPurchase,
+  CreateSupplierPurchaseInput,
+  SupplierPayment,
+  RecordSupplierPaymentInput,
+  ExpiryReturn,
+  CreateExpiryReturnInput,
+  BalanceSheetSummary,
   UpdateStatus
 } from './types'
 
@@ -56,7 +69,9 @@ export const IPC_CHANNELS = {
     GET_BY_ID: 'customers:get-by-id',
     CREATE: 'customers:create',
     UPDATE: 'customers:update',
-    DELETE: 'customers:delete'
+    DELETE: 'customers:delete',
+    GET_HISTORY: 'customers:get-history',
+    RECORD_PAYMENT: 'customers:record-payment'
   },
   INVOICES: {
     LIST: 'invoices:list',
@@ -66,6 +81,25 @@ export const IPC_CHANNELS = {
     HOLD_BILL: 'invoices:hold-bill',
     GET_HELD_BILLS: 'invoices:get-held-bills',
     REMOVE_HELD_BILL: 'invoices:remove-held-bill'
+  },
+  SUPPLIERS: {
+    LIST: 'suppliers:list',
+    GET_BY_ID: 'suppliers:get-by-id',
+    CREATE: 'suppliers:create',
+    UPDATE: 'suppliers:update',
+    DELETE: 'suppliers:delete',
+    LIST_PURCHASES: 'suppliers:list-purchases',
+    CREATE_PURCHASE: 'suppliers:create-purchase',
+    LIST_PAYMENTS: 'suppliers:list-payments',
+    RECORD_PAYMENT: 'suppliers:record-payment'
+  },
+  EXPIRY_RETURNS: {
+    LIST: 'expiry-returns:list',
+    CREATE: 'expiry-returns:create',
+    GET_ELIGIBLE_BATCHES: 'expiry-returns:get-eligible-batches'
+  },
+  BALANCE_SHEET: {
+    GET_SUMMARY: 'balance-sheet:get-summary'
   },
   UPDATER: {
     CHECK: 'updater:check',
@@ -112,6 +146,8 @@ export interface IpcApi {
     create: (input: CreateCustomerInput) => Promise<ApiResponse<Customer>>
     update: (input: UpdateCustomerInput) => Promise<ApiResponse<Customer>>
     delete: (id: number) => Promise<ApiResponse<boolean>>
+    getHistory: (customerId: number) => Promise<ApiResponse<CustomerMedicineHistoryItem[]>>
+    recordPayment: (input: RecordCustomerPaymentInput) => Promise<ApiResponse<CustomerPayment>>
   }
   invoices: {
     list: () => Promise<ApiResponse<Invoice[]>>
@@ -122,14 +158,36 @@ export interface IpcApi {
     getHeldBills: () => Promise<ApiResponse<HeldBill[]>>
     removeHeldBill: (id: string) => Promise<ApiResponse<boolean>>
   }
+  suppliers: {
+    list: (searchQuery?: string) => Promise<ApiResponse<Supplier[]>>
+    getById: (id: number) => Promise<ApiResponse<Supplier | null>>
+    create: (input: CreateSupplierInput) => Promise<ApiResponse<Supplier>>
+    update: (input: UpdateSupplierInput) => Promise<ApiResponse<Supplier>>
+    delete: (id: number) => Promise<ApiResponse<boolean>>
+    listPurchases: (supplierId?: number) => Promise<ApiResponse<SupplierPurchase[]>>
+    createPurchase: (input: CreateSupplierPurchaseInput) => Promise<ApiResponse<SupplierPurchase>>
+    listPayments: (supplierId?: number) => Promise<ApiResponse<SupplierPayment[]>>
+    recordPayment: (input: RecordSupplierPaymentInput) => Promise<ApiResponse<SupplierPayment>>
+  }
+  expiryReturns: {
+    list: () => Promise<ApiResponse<ExpiryReturn[]>>
+    create: (input: CreateExpiryReturnInput) => Promise<ApiResponse<ExpiryReturn>>
+    getEligibleBatches: () => Promise<ApiResponse<ProductBatch[]>>
+  }
+  balanceSheet: {
+    getSummary: () => Promise<ApiResponse<BalanceSheetSummary>>
+  }
   menu: {
     onAction: (callback: (action: string) => void) => () => void
   }
   updater: {
+    check: () => Promise<ApiResponse<UpdateStatus>>
+    download: () => Promise<ApiResponse<boolean>>
+    install: () => Promise<ApiResponse<boolean>>
+    status: () => Promise<ApiResponse<UpdateStatus>>
     checkForUpdates: () => Promise<ApiResponse<UpdateStatus>>
     downloadUpdate: () => Promise<ApiResponse<boolean>>
-    quitAndInstall: () => Promise<void>
+    quitAndInstall: () => Promise<ApiResponse<boolean>>
     onStatusChange: (callback: (status: UpdateStatus) => void) => () => void
   }
 }
-
