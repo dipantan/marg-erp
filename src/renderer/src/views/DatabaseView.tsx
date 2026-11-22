@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, RefreshCw, Cpu, Layers, Download, CheckCircle, FolderOpen } from 'lucide-react'
+import { HardDrive, RefreshCw, Cpu, Layers, Download, CheckCircle, FolderOpen, Trash2, ShieldCheck } from 'lucide-react'
 import type { DatabaseStats, AppInfo } from '@shared/types'
 
 interface DatabaseViewProps {
@@ -11,6 +11,8 @@ interface DatabaseViewProps {
 export const DatabaseView: React.FC<DatabaseViewProps> = ({ stats, appInfo, onRefresh }) => {
   const [vacuuming, setVacuuming] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [seeding, setSeeding] = useState(false)
   const [backupPath, setBackupPath] = useState('')
   const [actionMessage, setActionMessage] = useState('')
 
@@ -48,6 +50,55 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({ stats, appInfo, onRe
       }
     } finally {
       setExporting(false)
+    }
+  }
+
+  const handleClearForProduction = async (): Promise<void> => {
+    const ok = window.confirm(
+      '⚠️ ATTENTION: Clear All Demo Data for Production?\n\n' +
+      'This will permanently delete all demo medicines, batches, invoices, customers, suppliers, and transaction records.\n' +
+      'Your Store Profile, Licences (DL/GSTIN), and system configurations will be safely preserved.\n\n' +
+      'Are you sure you want to proceed and start with a clean production database?'
+    )
+    if (!ok) return
+
+    setClearing(true)
+    setActionMessage('')
+    try {
+      const res = await window.api.db.clearForProduction()
+      if (res.success) {
+        setActionMessage('✓ All demo data cleared successfully! Database is ready for live production use.')
+        await onRefresh()
+      } else {
+        setActionMessage('Failed to clear database: ' + res.error)
+      }
+    } catch (err: unknown) {
+      setActionMessage('Error: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const handleSeedDemoData = async (): Promise<void> => {
+    const ok = window.confirm(
+      'Load Sample Demo Data?\n\nThis will re-insert sample medicines, suppliers, and invoices for testing purposes.'
+    )
+    if (!ok) return
+
+    setSeeding(true)
+    setActionMessage('')
+    try {
+      const res = await window.api.db.seedSampleData()
+      if (res.success) {
+        setActionMessage('✓ Sample demo data loaded successfully.')
+        await onRefresh()
+      } else {
+        setActionMessage('Failed to load demo data: ' + res.error)
+      }
+    } catch (err: unknown) {
+      setActionMessage('Error: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setSeeding(false)
     }
   }
 
@@ -263,6 +314,51 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({ stats, appInfo, onRe
               <span>temp_store</span>
               <span className="badge badge-info">MEMORY</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Production Deployment & Data Reset Card */}
+      <div className="card" style={{ marginTop: '20px', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+        <div className="card-header" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldCheck size={20} color="#10b981" />
+            <h2 className="card-title" style={{ margin: 0 }}>Client Production Handover & Data Setup</h2>
+          </div>
+          <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>Production Control</span>
+        </div>
+
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            By default, the software initializes with demo records (5 sample medicines, sample suppliers, and sample invoices) for demonstration and testing.
+            For your client to use this system in <strong>live production</strong>:
+            <ul style={{ margin: '8px 0 0 18px', padding: 0 }}>
+              <li>Configure the client&apos;s pharmacy details in <strong>Store Licences (Alt+7)</strong> (Store Name, Address, DL 20/21, DL 20B/21B, GSTIN).</li>
+              <li>Click <strong>&quot;Clear Demo Data for Production&quot;</strong> below to wipe sample invoices, sample medicines, and sample ledgers.</li>
+              <li>The database will remain 100% empty and clean, ready for the client&apos;s actual stock entry and real billing.</li>
+            </ul>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' }}>
+            <button
+              className="btn btn-danger"
+              onClick={handleClearForProduction}
+              disabled={clearing || seeding}
+              style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+            >
+              <Trash2 size={16} />
+              <span>{clearing ? 'Clearing Data...' : 'Clear Demo Data for Production (ফ্রেশ প্রোডাকশন ডাটাবেস)'}</span>
+            </button>
+
+            <button
+              className="btn btn-secondary"
+              onClick={handleSeedDemoData}
+              disabled={clearing || seeding}
+              title="Only use if you want to restore sample demo data for testing"
+            >
+              <RefreshCw size={15} className={seeding ? 'spinning' : ''} />
+              <span>{seeding ? 'Loading Demo Data...' : 'Load Sample Demo Data (টেস্টিং ডেমো ডাটা)'}</span>
+            </button>
           </div>
         </div>
       </div>

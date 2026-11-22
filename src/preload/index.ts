@@ -20,6 +20,7 @@ const apiBridge: IpcApi = {
   db: {
     getStats: () => ipcRenderer.invoke(IPC_CHANNELS.DB.GET_STATS),
     seedSampleData: () => ipcRenderer.invoke(IPC_CHANNELS.DB.SEED_SAMPLE_DATA),
+    clearForProduction: () => ipcRenderer.invoke(IPC_CHANNELS.DB.CLEAR_FOR_PRODUCTION),
     vacuum: () => ipcRenderer.invoke(IPC_CHANNELS.DB.VACUUM),
     exportBackup: () => ipcRenderer.invoke(IPC_CHANNELS.DB.EXPORT_BACKUP)
   },

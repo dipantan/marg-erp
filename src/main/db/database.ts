@@ -105,6 +105,17 @@ function runMigrations(db: Database.Database): void {
       console.warn('Migration error on product_batches.supplier_id:', err)
     }
   }
+
+  // 4. store_settings: is_production_mode
+  if (!checkColumn('store_settings', 'is_production_mode')) {
+    try {
+      db.exec(`
+        ALTER TABLE store_settings ADD COLUMN is_production_mode INTEGER DEFAULT 0;
+      `)
+    } catch (err) {
+      console.warn('Migration error on store_settings.is_production_mode:', err)
+    }
+  }
 }
 
 export function initDatabase(): Database.Database {
@@ -410,7 +421,41 @@ export function removeHeldBill(id: string): boolean {
   return true
 }
 
+export function clearAllDataForProduction(): boolean {
+  const db = getDatabase()
+  db.transaction(() => {
+    db.exec(`
+      DELETE FROM invoice_items;
+      DELETE FROM invoices;
+      DELETE FROM draft_invoices;
+      DELETE FROM expiry_returns;
+      DELETE FROM supplier_payments;
+      DELETE FROM supplier_purchases;
+      DELETE FROM product_batches;
+      DELETE FROM products;
+      DELETE FROM customers;
+      DELETE FROM customer_payments;
+      DELETE FROM suppliers;
+      UPDATE store_settings SET is_production_mode = 1 WHERE id = 1;
+    `)
+  })()
+  db.exec('VACUUM;')
+  return true
+}
+
 export function seedInitialDataIfEmpty(db: Database.Database): boolean {
+  // If user has switched to production mode, do not auto-seed!
+  try {
+    const isProdRow = db
+      .prepare('SELECT is_production_mode FROM store_settings WHERE id = 1')
+      .get() as { is_production_mode?: number } | undefined
+    if (isProdRow && isProdRow.is_production_mode === 1) {
+      return false
+    }
+  } catch {
+    // Column might not exist yet during first migration
+  }
+
   const countRow = db.prepare('SELECT COUNT(*) as count FROM products').get() as { count: number }
   if (countRow.count > 0) {
     // If products already exist, check if suppliers exist and seed sample suppliers if missing

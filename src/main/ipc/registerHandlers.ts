@@ -22,6 +22,7 @@ import {
   getDatabaseStats,
   getDatabasePath,
   seedInitialDataIfEmpty,
+  clearAllDataForProduction,
   getStoreSettings,
   updateStoreSettings,
   exportDatabaseBackup,
@@ -124,6 +125,13 @@ export function registerIpcHandlers(): void {
     wrapHandler(async () => {
       const db = getDatabase()
       return seedInitialDataIfEmpty(db)
+    })
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.DB.CLEAR_FOR_PRODUCTION,
+    wrapHandler(async () => {
+      return clearAllDataForProduction()
     })
   )
 

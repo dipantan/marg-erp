@@ -49,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
           title="Alt+2 / F6: Retail & Wholesale Invoicing"
         >
           <Receipt size={14} />
-          <span className="nav-item-title">Invoices (Retail/Wholesale)</span>
+          <span className="nav-item-title">Invoices & Billing</span>
           <span className="nav-shortcut-tag">Alt+2</span>
         </button>
 
@@ -76,20 +76,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         <button
           className={`desktop-nav-item ${currentTab === 'balanceSheet' ? 'active' : ''}`}
           onClick={() => onSelectTab('balanceSheet')}
-          title="Alt+5: Balance Sheet, Dokan & Customer Dues"
+          title="Alt+5 / F8: Balance Sheet, Dokan & Customer Dues"
         >
           <Wallet size={14} color="#f59e0b" />
-          <span className="nav-item-title" style={{ fontWeight: 600 }}>Balance Sheet (হিসাব/বাকি)</span>
+          <span className="nav-item-title">Balance Sheet</span>
           <span className="nav-shortcut-tag">Alt+5</span>
         </button>
 
         <button
           className={`desktop-nav-item ${currentTab === 'expiryReturns' ? 'active' : ''}`}
           onClick={() => onSelectTab('expiryReturns')}
-          title="Alt+6: Expiry Medicine Return to Supplier"
+          title="Alt+6 / F9: Expiry Medicine Return to Supplier"
         >
           <RotateCcw size={14} color="#ef4444" />
-          <span className="nav-item-title" style={{ fontWeight: 600 }}>Expiry Returns (ফেরত)</span>
+          <span className="nav-item-title">Expiry Returns</span>
           <span className="nav-shortcut-tag">Alt+6</span>
         </button>
       </div>

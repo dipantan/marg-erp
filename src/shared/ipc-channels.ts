@@ -50,6 +50,7 @@ export const IPC_CHANNELS = {
   DB: {
     GET_STATS: 'db:get-stats',
     SEED_SAMPLE_DATA: 'db:seed-sample-data',
+    CLEAR_FOR_PRODUCTION: 'db:clear-for-production',
     VACUUM: 'db:vacuum',
     EXPORT_BACKUP: 'db:export-backup'
   },
@@ -126,6 +127,7 @@ export interface IpcApi {
   db: {
     getStats: () => Promise<ApiResponse<DatabaseStats>>
     seedSampleData: () => Promise<ApiResponse<boolean>>
+    clearForProduction: () => Promise<ApiResponse<boolean>>
     vacuum: () => Promise<ApiResponse<boolean>>
     exportBackup: () => Promise<ApiResponse<{ savedPath: string }>>
   }
